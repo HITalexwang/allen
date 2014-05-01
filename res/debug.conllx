@@ -1,0 +1,71 @@
+#ID	FORM	LEMMA	CPOSTAG	POSTAG	FEATS	HEAD	DEPREL	PHEAD	PDEREL
+
+# cat debug.conllx | grep -v -e '^#' -e '^$' | cut -f 8 | sort | uniq | sort > debug.deprel
+# cat debug.conllx | grep -v -e '^#' -e '^$' | cut -f 4 | sort | uniq | sort > debug.cpos
+# cat debug.conllx | grep -v -e '^#' -e '^$' | cut -f 5 | sort | uniq | sort > debug.pos
+
+# TODO: Not including PoS for example, fix?
+
+# Short made-up sentence (easy to debug).
+# XXX: PoS by CoreNLP
+1	I	_	NNP	NNP	_	2	NSUBJ	2	NSUBJ
+2	ate	_	VBD	VBD	_	0	ROOT	0	ROOT
+3	sashimi	_	NNP	NNP	_	2	DOBJ	2	DOBJ
+
+# Projective sentence XXX:
+# XXX: from Nivre (2008).
+# XXX: PoS by CoreNLP
+1	Economic	_	JJ	JJ	_	2	NMOD	2	NMOD
+2	news	_	NN	NN	_	3	SBJ	3	SBJ
+3	had	_	VBD	VBD	_	0	ROOT	0	ROOT
+4	little	_	JJ	JJ	_	5	NMOD	5	NMOD
+5	effect	_	NN	NN	_	3	OBJ	3	OBJ
+6	on	_	IN	IN	_	5	NMOD	5	NMOD
+7	financial	_	JJ	JJ	_	8	NMOD	8	NMOD
+8	markets	_	NNS	NNS	_	6	PMOD	6	PMOD
+9	.	_	.	.	_	3	P	3	P
+
+# XXX: from Nivre (2008).
+# XXX: PoS from CoNLL-X Corpus
+# Note: XXX: Pseudo-projective heads induced using -pp head and malt!
+1	Z	_	R	R	_	5	AuxP	3	AuxP|Sb
+2	nich	_	P	5	_	1	Atr	1	Atr
+3	je	_	V	B	_	0	Pred	0	Pred
+4	jen	_	T	T	_	5	AuxZ	5	AuxZ
+5	jedna	_	C	l	_	3	Sb	3	Sb
+6	na	_	R	R	_	3	AuxP	3	AuxP
+7	kvalitu	_	N	N	_	6	Adv	6	Adv
+8	.	_	Z	:	_	0	AuxK	0	AuxK
+
+# Yet another non-projective sentence XXX:
+# XXX: PoS from CoreNLP
+# Note: XXX: Pseudo-projective heads induced using -pp head and malt!
+1	A	_	DT	DT	_	2	DET	2	DET
+2	hearing	_	NN	NN	_	3	SBJ	3	SBJ
+3	is	_	VBZ	VBZ	_	0	ROOT	0	ROOT
+4	scheduled	_	VBN	VBN	_	3	VG	3	VG
+5	on	_	IN	IN	_	2	NMOD	3	NMOD|SBJ
+6	the	_	DT	DT	_	7	DET	7	DET
+7	issue	_	NN	NN	_	5	PC	5	PC
+8	today	_	NN	NN	_	4	ADV	3	ADV|VG
+9	.	_	.	.	_	3	P	3	P
+
+# Yet another non-projective sentence XXX: From Nivre et al. (2009).
+# XXX: PoS from CoreNLP
+# Note: XXX: Pseudo-projective heads induced using -pp head and malt!
+1	Who	_	WP	WP	_	7	NMOD	2	NMOD|OBJ_2
+2	did	_	VBD	VBD	_	0	ROOT	0	ROOT
+3	you	_	PRP	PRP	_	2	SUBJ	2	SUBJ
+4	send	_	VB	VB	_	2	VG	2	VG
+5	the	_	DT	DT	_	6	DET	6	DET
+6	letter	_	NN	NN	_	4	OBJ_1	4	OBJ_1
+7	to	_	TO	TO	_	4	OBJ_2	4	OBJ_2
+8	?	_	.	.	_	2	P	2	P
+
+# Yet another non-projective sentence, in Croatian, minimal length from Goran XXX:
+# Note: XXX: Pseudo-projective heads induced using -pp head and malt!
+# "good am sashimi ate" or "I ate good sashimi"
+1	Dobar	_	A	A	_	3	MOD	4	MOD|OBJ
+2	sam	_	AUX	AUX	_	4	SUBJ	4	SUBJ
+3	sashimi	_	N	N	_	4	OBJ	4	OBJ
+4	pojeo	_	V	V	_	0	ROOT	0	ROOT
