@@ -34,11 +34,11 @@ type Token
     # Set of syntactic and/or morphological features.
     feats::String # TODO: Should be an ordered set, is there one in Julia?
     # [0,|Sentence|] id of the head of the token.
-    head::Int
+    head::Uint
     # Dependency relation to the head.
     deprel::String
     # [0,|Sentence|] id of the projective head of the token.
-    phead::Int
+    phead::Uint
     # Dependency relation to the projective head.
     pdeprel::String
 end
@@ -68,7 +68,7 @@ const CONLLXREGEX = Regex(string("^([0-9]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)\t",
 type CoNLLXParse
     stream::IO
     blind::Bool
-    linenum::Int
+    linenum::Uint
 end
 
 function conllxparse(stream::IO; blind=false)
