@@ -33,24 +33,28 @@ type Token
     postag::String
     # Set of syntactic and/or morphological features.
     feats::String # TODO: Should be an ordered set, is there one in Julia?
-    # [0,|Sentence|] id of the head of the token.
-    head::Uint
+    # [-1,|Sentence|] id of the head of the token, -1 for no head.
+    head::Int
     # Dependency relation to the head.
     deprel::String
-    # [0,|Sentence|] id of the projective head of the token.
-    phead::Uint
+    # [-1,|Sentence|] id of the projective head of the token, -1 for no phead.
+    phead::Int
     # Dependency relation to the projective head.
     pdeprel::String
 end
 
+const NOHEAD = -1
+
 function show(io::IO, t::Token)
+    head, phead = map(i -> i == NOHEAD ? "_" : string(i), (t.head, t.phead))
+
     print(io, string("$(t.id)\t$(t.form)\t$(t.lemma)\t$(t.cpostag)\t",
-        "$(t.postag)\t$(t.feats)\t$(t.head)\t$(t.deprel)\t$(t.phead)\t",
+        "$(t.postag)\t$(t.feats)\t$head\t$(t.deprel)\t$phead\t",
         "$(t.pdeprel)"))
 end
 
 function blind!(t::Token)
-    t.head, t.phead = (0, 0)
+    t.head, t.phead = (NOHEAD, NOHEAD)
     t.deprel, t.pdeprel = ("_", "_")
 end
 
@@ -110,9 +114,9 @@ function next(itr::CoNLLXParse, nada)
 
         # The projective head is optional.
         if phead_str != "_"
-            phead = int(phead)
+            phead = int(phead_str)
         else
-            phead = 0
+            phead = NOHEAD
         end
 
         tok = Token(id, form, lemma, cpostag, postag, feats, head, deprel,
