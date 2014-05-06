@@ -12,16 +12,14 @@
 
 module CoNLLX
 
-import Base.done
-import Base.next
-import Base.show
-import Base.start
+import Base: done, next, show, start
 
 # TODO: Serialise, de-serialize test!
 # TODO: Makefile sanity...
+# TODO: Callable as a command-line script for shuffling, etc.
 
 type Token
-    # [1,|Sentence|] sentence-internal unique token identifier.
+    # [2,|Sentence|+1] sentence-internal unique token identifier.
     id::Uint
     # Token form, the actual text.
     form::String
@@ -33,29 +31,31 @@ type Token
     postag::String
     # Set of syntactic and/or morphological features.
     feats::String # TODO: Should be an ordered set, is there one in Julia?
-    # [-1,|Sentence|] id of the head of the token, -1 for no head.
-    head::Int
+    # [1,|Sentence|+1] id of the head of the token, 0 for no head.
+    head::Uint
     # Dependency relation to the head.
     deprel::String
-    # [-1,|Sentence|] id of the projective head of the token, -1 for no phead.
-    phead::Int
+    # [1,|Sentence|+1] id of the projective head of the token, 0 for no phead.
+    phead::Uint
     # Dependency relation to the projective head.
     pdeprel::String
 end
 
-const NOHEAD = -1
+const NOHEAD = 0
+const NOVAL = "_"
 
 function show(io::IO, t::Token)
-    head, phead = map(i -> i == NOHEAD ? "_" : string(i), (t.head, t.phead))
+    head, phead = map(i -> i == NOHEAD ? NOVAL : string(i - 1),
+        (t.head, t.phead))
 
-    print(io, string("$(t.id)\t$(t.form)\t$(t.lemma)\t$(t.cpostag)\t",
+    print(io, string("$(t.id-1)\t$(t.form)\t$(t.lemma)\t$(t.cpostag)\t",
         "$(t.postag)\t$(t.feats)\t$head\t$(t.deprel)\t$phead\t",
         "$(t.pdeprel)"))
 end
 
 function blind!(t::Token)
     t.head, t.phead = (NOHEAD, NOHEAD)
-    t.deprel, t.pdeprel = ("_", "_")
+    t.deprel, t.pdeprel = (NOVAL, NOVAL)
 end
 
 typealias Sentence Array{Token}
@@ -75,9 +75,7 @@ type CoNLLXParse
     linenum::Uint
 end
 
-function conllxparse(stream::IO; blind=false)
-    CoNLLXParse(stream, blind, 0)
-end
+conllxparse(stream::IO; blind=false) = CoNLLXParse(stream, blind, 0)
 
 start(::CoNLLXParse) = nothing
 
@@ -112,9 +110,15 @@ function next(itr::CoNLLXParse, nada)
             phead_str, pdeprel) = soup.captures
         id, head = map(int, (id_str, head_str))
 
+        # Bump the ids internally to allow it to double as an index (necessary
+        #   due to Julia being 1-indexed).
+        id += 1
+        head += 1
+
         # The projective head is optional.
-        if phead_str != "_"
-            phead = int(phead_str)
+        if phead_str != NOVAL
+            # Convert and bump the id.
+            phead = int(phead_str) + 1
         else
             phead = NOHEAD
         end
