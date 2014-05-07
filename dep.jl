@@ -43,7 +43,9 @@ function token(v::Vertex)
         v.deprel, NOHEAD, NOVAL)
 end
 
-root() = Vertex(1, "ROOT", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
+const ROOTID = 1
+
+root() = Vertex(ROOTID, "ROOT", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
 
 typealias Graph Array{Vertex}
 
