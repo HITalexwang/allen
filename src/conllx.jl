@@ -11,9 +11,9 @@
 
 module CoNLLX
 
-import Base: done, next, show, start
-
 export NOHEAD, NOVAL, Sentence, Sentences, Token, conllxparse
+
+import Base: done, next, show, start
 
 type Token
     # [2,|Sentence|+1] sentence-internal unique token identifier.
@@ -65,11 +65,14 @@ const CONLLXREGEX = Regex(string("^([0-9]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)\t",
 # Parsing implemented using the iterator protocol.
 type CoNLLXParse
     stream::IO
+    useproj::Bool
     blind::Bool
     linenum::Uint
 end
 
-conllxparse(stream::IO; blind=false) = CoNLLXParse(stream, blind, 0)
+function conllxparse(stream::IO; blind=false, useproj=false)
+    return CoNLLXParse(stream, useproj, blind, 0)
+end
 
 start(::CoNLLXParse) = nothing
 
@@ -115,6 +118,13 @@ function next(itr::CoNLLXParse, nada)
             phead = int(phead_str) + 1
         else
             phead = NOHEAD
+        end
+
+        # Override the potentially non-projective head/deprel with their
+        #   projective counterparts.
+        if itr.useproj
+            head = phead
+            deprel = pdeprel
         end
 
         tok = Token(id, form, lemma, cpostag, postag, feats, head, deprel,
