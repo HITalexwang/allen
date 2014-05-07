@@ -97,14 +97,23 @@ function edge!(graph::Graph, dependent::Vertex, head::Vertex, deprel)
     dependent.deprel = deprel
 end
 
-function valency(vert::Vertex, right=false, left=false)
-    if left & !right
-        return vert.lvalency
-    elseif right & !left
-        return vert.rvalency
+function deledge!(graph::Graph, dependent::Vertex, head::Vertex)
+    dependent.head = NOHEAD
+    deleteat!(head.dependents, findfirst(head.dependents, dependent.id))
+    if dependent.id < head.id
+        head.lvalency -= 1
     else
-        return vert.lvalency + vert.rvalency
+        head.rvalency -= 1
     end
+end
+
+function deledge!(graph::Graph, dependent::Vertex, head::Vertex, deprel)
+    deledge!(graph, dependent, head)
+    dependent.deprel = NOVAL
+end
+
+function valency(vert::Vertex)
+    return vert.lvalency + vert.rvalency
 end
 
 #import CoNLLX.conllxparse
