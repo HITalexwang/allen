@@ -11,6 +11,7 @@ FETCH_CMD=wget
 ${BUILD}:
 	mkdir ${BUILD}
 
+.DEFAULT_GOAL:=${BUILD}/maltparser
 ${BUILD}/maltparser: ${BUILD}
 	${FETCH_CMD} -P build "${MALT_URL}"
 	tar -x -z -f "${@}-${MALT_VER}.tar.gz" -C build
