@@ -9,13 +9,13 @@
 
 module DepGraph
 
+export Graph, ROOTID, Vertex, dgraph, edge!, sentence
+
 require("conllx.jl")
 
 import Base: show
 
 using CoNLLX
-
-export dgraph
 
 type Vertex
     id::Uint
