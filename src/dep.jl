@@ -1,4 +1,3 @@
-#!/usr/bin/env julia
 # vim:set ft=julia ts=4 sw=4 sts=4 autoindent:
 
 # Syntacto-semantic dependency graph and associated functions.
@@ -10,9 +9,13 @@
 
 module DepGraph
 
+require("conllx.jl")
+
 import Base: show
 
-import CoNLLX: NOHEAD, NOVAL, Sentence, Token
+using CoNLLX
+
+export dgraph
 
 type Vertex
     id::Uint
@@ -115,15 +118,5 @@ end
 function valency(vert::Vertex)
     return vert.lvalency + vert.rvalency
 end
-
-#import CoNLLX.conllxparse
-#a = collect(conllxparse(open("res/debug.conllx")))
-#a = collect(conllxparse(open("res/debug.conllx")))
-#a = collect(conllxparse(open("foo.conllx")))
-
-#b = dgraph(a[1])
-#println(b)
-#c = sentence(b)
-#println(c)
 
 end

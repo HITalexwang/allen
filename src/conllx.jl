@@ -1,4 +1,3 @@
-#!/usr/bin/env julia
 # vim:set ft=julia ts=4 sw=4 sts=4 autoindent:
 
 # Parse CoNLL-X (also known as CoNLL 2006) style dependency data.
@@ -14,9 +13,7 @@ module CoNLLX
 
 import Base: done, next, show, start
 
-# TODO: Serialise, de-serialize test!
-# TODO: Makefile sanity...
-# TODO: Callable as a command-line script for shuffling, etc.
+export NOHEAD, NOVAL, Sentence, Sentences, Token, conllxparse
 
 type Token
     # [2,|Sentence|+1] sentence-internal unique token identifier.
@@ -60,9 +57,6 @@ end
 
 typealias Sentence Array{Token}
 typealias Sentences Array{Sentence}
-
-# TODO: Sentence from another Sentence with blind argument.
-# TODO: Sentences from another Sentences with blind argument.
 
 # Not the friendliest of expressions, but it will do the trick.
 const CONLLXREGEX = Regex(string("^([0-9]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)\t",
@@ -139,12 +133,5 @@ function next(itr::CoNLLXParse, nada)
 end
 
 done(itr::CoNLLXParse, nada) = eof(itr.stream)
-
-#for a in conllxparse(open("res/debug.conllx"))
-#    println(a)
-#end
-
-#a = collect(conllxparse(open("res/debug.conllx")))
-#a = collect(conllxparse(open("res/talbanken/train.conllx")))
 
 end
