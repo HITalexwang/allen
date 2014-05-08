@@ -11,7 +11,7 @@
 
 module Hybrid
 
-export apply!, config, isterminal, oracle
+export apply!, config, islegal, isterminal, oracle, randoracle
 
 import Base: show
 
@@ -50,6 +50,10 @@ function apply!(conf::Config, ::Shift)
     return shiftundo
 end
 
+function islegal(c::Config, ::Shift)
+    return !isempty(c.buff)
+end
+
 type LeftArc
     deprel::String
 end
@@ -67,6 +71,10 @@ function apply!(conf::Config, trans::LeftArc)
     return LeftArcUndo(dependent, trans.deprel)
 end
 
+function islegal(c::Config, ::LeftArc)
+    return !isempty(c.stack) && !isempty(c.buff) && c.stack[1].id != ROOTID
+end
+
 type RightArc
     deprel::String
 end
@@ -82,6 +90,10 @@ function apply!(conf::Config, trans::RightArc)
     end
 
     return RightArcUndo(dependent, trans.deprel)
+end
+
+function islegal(c::Config, ::RightArc)
+    return length(c.stack) > 1
 end
 
 type ShiftUndo
@@ -136,8 +148,18 @@ function oracle(conf::Config)
     return Shift()
 end
 
+# TODO: Variant with all deprels!
+function transitions()
+    return (Shift(), LeftArc(NOVAL), RightArc(NOVAL))
+end
+
+# Return a random legal transition (useful for debugging).
+function randoracle(c::Config)
+    legal = filter(t -> islegal(c, t), collect(transitions()))
+    return legal[rand(1:end)]
+end
+
 # TODO: Later...!
-# TODO: Legal trans.
 # TODO: Featurise.
 
 end

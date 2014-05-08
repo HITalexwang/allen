@@ -21,6 +21,7 @@ using Parse
 respath = string(dirname(source_path()), "/../../res/")
 datapath = string(respath, "talbanken/train.conllx")
 
+# Parse using an oracle and ensure that we get the gold annotations back.
 open(datapath, "r") do data_f
     sentnum = 0
     for goldsent in conllxparse(data_f, useproj=true)
@@ -33,5 +34,12 @@ open(datapath, "r") do data_f
             println(goldsent)
             rethrow(e)
         end
+    end
+end
+
+# Parse using a random oracle and ensure that we do not crash.
+open(datapath, "r") do data_f
+    for goldsent in conllxparse(data_f, useproj=true)
+        parse(goldsent, randoracle)
     end
 end
