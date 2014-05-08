@@ -50,6 +50,11 @@ function show(io::IO, t::Token)
         "$(t.pdeprel)"))
 end
 
+function useproj!(t::Token)
+    t.head = t.phead
+    t.deprel = t.pdeprel
+end
+
 function blind!(t::Token)
     t.head, t.phead = (NOHEAD, NOHEAD)
     t.deprel, t.pdeprel = (NOVAL, NOVAL)
@@ -120,15 +125,14 @@ function next(itr::CoNLLXParse, nada)
             phead = NOHEAD
         end
 
+        tok = Token(id, form, lemma, cpostag, postag, feats, head, deprel,
+            phead, pdeprel)
+
         # Override the potentially non-projective head/deprel with their
         #   projective counterparts.
         if itr.useproj
-            head = phead
-            deprel = pdeprel
+            useproj!(tok)
         end
-
-        tok = Token(id, form, lemma, cpostag, postag, feats, head, deprel,
-            phead, pdeprel)
 
         # Remove (blind) any gold annotations.
         if itr.blind
