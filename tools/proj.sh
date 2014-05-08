@@ -12,7 +12,7 @@
 # Version:  2013-01-04
 
 SCRIPT_DIR=`dirname "${0}"`
-MALT_DIR="${SCRIPT_DIR}/../build/maltparser"
+MALT_DIR="${SCRIPT_DIR}/../wrk/maltparser"
 MALT_JAR="${MALT_DIR}/maltparser.jar"
 
 # Malt configuration file, for some absurd reason it needs to be in the
