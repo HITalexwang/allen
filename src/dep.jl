@@ -48,7 +48,7 @@ end
 
 const ROOTID = 1
 
-root() = Vertex(ROOTID, "ROOT", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
+root() = Vertex(ROOTID, "<ROOT>", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
 
 typealias Graph Array{Vertex}
 
