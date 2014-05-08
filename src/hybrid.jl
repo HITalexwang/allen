@@ -37,9 +37,7 @@ function config(sent::Sentence)
     return Config(graph[1:1], reverse(graph[2:end]), graph)
 end
 
-function isterminal(c::Config)
-    return isempty(c.buff) && length(c.stack) == 1
-end
+isterminal(c::Config) = isempty(c.buff) && length(c.stack) == 1
 
 type Shift
     # Intentionally left blank.
@@ -50,9 +48,7 @@ function apply!(conf::Config, ::Shift)
     return shiftundo
 end
 
-function islegal(c::Config, ::Shift)
-    return !isempty(c.buff)
-end
+islegal(c::Config, ::Shift) = !isempty(c.buff)
 
 type LeftArc
     deprel::String
@@ -92,9 +88,7 @@ function apply!(conf::Config, trans::RightArc)
     return RightArcUndo(dependent, trans.deprel)
 end
 
-function islegal(c::Config, ::RightArc)
-    return length(c.stack) > 1
-end
+islegal(c::Config, ::RightArc) = length(c.stack) > 1
 
 type ShiftUndo
     # Intentionally left blank.
