@@ -94,7 +94,7 @@ function next(itr::CoNLLXParse, nada)
 
         # Empty lines are used as sentence separators.
         if line[1] == '\n'
-            if length(sent) > 1
+            if !isempty(sent)
                 return (sent, nothing)
                 sent = Token[]
             end
