@@ -11,7 +11,7 @@
 
 module Hybrid
 
-export apply!, config, islegal, isterminal, oracle, randoracle
+export apply!, config, featurise, islegal, isterminal, oracle, randoracle
 
 import Base: show
 
@@ -153,7 +153,37 @@ function randoracle(c::Config)
     return legal[rand(1:end)]
 end
 
-# TODO: Later...!
-# TODO: Featurise.
+const NULLID = 0
+
+const NULLVERT = Vertex(NULLID, "<NULL>", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
+
+# TODO: Expand to the full feature set.
+# TODO: Use an iterator instead.
+function featurise(c::Config)
+    feats = String[]
+
+    # Short-hands.
+    stack = c.stack
+    buff = c.buff
+
+    s0 = !isempty(stack) ? stack[end] : NULLVERT
+    s1 = length(stack) > 1 ? stack[end-1] : NULLVERT
+    s2 = length(stack) > 2 ? stack[end-2] : NULLVERT
+
+    b0 = !isempty(buff) ? buff[end] : NULLVERT
+    b1 = length(buff) > 1 ? buff[end-1] : NULLVERT
+
+    for (name, tok) in (
+        ("s0", s0),
+        ("s1", s1),
+        ("s2", s2),
+        ("b0", b0),
+        ("b1", b1),
+        )
+        push!(feats, string(name, ".form|", tok.form))
+    end
+
+    return feats
+end
 
 end
