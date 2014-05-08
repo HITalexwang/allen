@@ -38,8 +38,7 @@ function config(sent::Sentence)
 end
 
 function isterminal(c::Config)
-    return (length(c.buff) < 1 && length(c.stack) == 1
-        && c.stack[1].id == ROOTID)
+    return isempty(c.buff) && length(c.stack) == 1
 end
 
 type Shift
@@ -114,7 +113,7 @@ function undo!(undo::RightArcUndo)
 end
 
 function oracle(conf::Config)
-    if length(conf.stack) > 0 && length(conf.buff) > 0
+    if !isempty(conf.stack) && !isempty(conf.buff)
         s_0 = conf.stack[end]
         b_0 = conf.buff[end]
         if s_0.head == b_0.id
