@@ -5,8 +5,6 @@
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-07
 
-# TODO: A bit too much duplication from CoNLL-X...
-
 require("conllx.jl")
 require("dep.jl")
 require("hybrid.jl")
@@ -21,12 +19,19 @@ using Hybrid
 using Parse
 
 respath = string(dirname(source_path()), "/../../res/")
-debugpath = string(respath, "debug.conllx")
+datapath = string(respath, "talbanken/train.conllx")
 
-open(debugpath, "r") do debug_f
-    goldsents = collect(conllxparse(debug_f, useproj=true))
-    for goldsent in goldsents
-        predsent = parse(goldsent, oracle)
-        @test isequal(predsent, goldsent)
+open(datapath, "r") do data_f
+    sentnum = 0
+    for goldsent in conllxparse(data_f, useproj=true)
+        sentnum += 1
+        try
+            predsent = parse(goldsent, oracle)
+            @test isequal(predsent, goldsent)
+        catch e
+            println("Sentence: $sentnum")
+            println(goldsent)
+            rethrow(e)
+        end
     end
 end
