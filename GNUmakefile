@@ -22,6 +22,10 @@ ${WRK}/maltparser: ${WRK}
 sanity:
 	julia test/sanity/sanity.jl
 
+.PHONY: perf
+perf:
+	julia test/perf/perf.jl
+
 .PHONY: clean
 clean:
 	rm -r -f "${WRK}"
