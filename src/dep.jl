@@ -9,7 +9,7 @@
 
 module DepGraph
 
-export Graph, ROOTID, Vertex, dgraph, edge!, sentence
+export Graph, ROOTID, Vertex, deledge!, dgraph, edge!, sentence
 
 require("conllx.jl")
 
