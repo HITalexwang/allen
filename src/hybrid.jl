@@ -181,8 +181,11 @@ const NULLID = 0
 
 const NULLVERT = Vertex(NULLID, "<NULL>", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
 
-# TODO: Expand to the full feature set.
-# TODO: Use an iterator instead.
+# TODO: Use a co-routine.
+# Feature set used in "Training Deterministic Parsers with Non-Deterministic
+#   Oracles" by Goldberg et al. (2013).
+# XXX: Mention bug-fix, mail Goldberg.
+# TODO: How does redshift make this so damn fast?
 function featurise(c::Config)
     feats = String[]
 
@@ -197,15 +200,66 @@ function featurise(c::Config)
     b0 = !isempty(buff) ? buff[end] : NULLVERT
     b1 = length(buff) > 1 ? buff[end-1] : NULLVERT
 
+    # Single tokens.
     for (name, tok) in (
         ("s0", s0),
         ("s1", s1),
-        ("s2", s2),
         ("b0", b0),
         ("b1", b1),
         )
-        push!(feats, string(name, ".form|", tok.form))
+        push!(feats, string(name, ".form", "=>", tok.form))
+        push!(feats, string(name, ".postag", "=>", tok.postag))
+        push!(feats, string(name, ".form", "|", name, ".postag",
+            "=>", tok.form, "|", tok.postag))
     end
+
+    # Pairs of tokens.
+    for (aname, atok, bname, btok, cname, ctok) in (
+        ("s0", s0, "s1", s1, "b0", b0),
+        ("s0", s0, "b0", b0, "b1", b1),
+        )
+        # a.form,   b.form
+        push!(feats, string(aname, ".form", "|", bname, ".form",
+            "=>", atok.form, "|", btok.form))
+        # a.pos,    b.pos
+        push!(feats, string(aname, ".postag", "|", bname, ".postag",
+            "=>", atok.postag, "|", btok.postag))
+        # a.pos,    c.pos
+        push!(feats, string(aname, ".postag", "|", cname, ".postag",
+            "=>", atok.postag, "|", ctok.postag))
+
+        # a.form,   a.pos,  b.pos
+        push!(feats, string(aname, ".form", "|", aname, ".postag", "|",
+            bname, ".postag",
+            "=>", atok.form, "|", atok.postag, "|", btok.postag))
+        # a.pos,    b.form, b.pos
+        push!(feats, string(aname, ".postag", "|", bname, ".form", "|",
+            bname, ".postag",
+            "=>", atok.postag, "|", btok.form, "|", btok.postag))
+        # a.form,   b.form, b.pos
+        push!(feats, string(aname, ".form", "|", bname, ".form", "|",
+            bname, ".postag",
+            "=>", atok.form, "|", btok.form, "|", btok.postag))
+        # a.form,   a.pos,  b.form
+        push!(feats, string(aname, ".form", "|", aname, ".postag", "|",
+            bname, ".form",
+            "=>", atok.form, "|", atok.postag, "|", btok.form))
+        # Goldberg et al. (2013) repeats the first feature template here
+        #   for a=s0 and b=s1. This is most likely an error and we correct it.
+        # b.form,   b.pos,  c.pos
+        push!(feats, string(bname, ".form", "|", bname, ".postag", "|",
+            cname, ".postag",
+            "=>", btok.form, "|", btok.postag, "|", ctok.postag))
+    end
+
+    # Triplets of tokens.
+    # TODO:
+
+    # Quadruplets of tokens.
+    # TODO:
+
+    # Quintuplets of tokens.
+    # TODO:
 
     return feats
 end
