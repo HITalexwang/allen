@@ -22,9 +22,15 @@ ${WRK}/maltparser: ${WRK}
 sanity:
 	julia test/sanity/sanity.jl
 
+# TODO: Depend on sanity?
 .PHONY: perf
 perf:
 	julia test/perf/perf.jl
+
+# TODO: Depend on sanity?
+.PHONY: profile
+profile:
+	julia test/profile.jl
 
 .PHONY: clean
 clean:
