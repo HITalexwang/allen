@@ -56,7 +56,7 @@ end
 function uniforminit(w; offset=1)
     togen = length(w) - (offset - 1)
     # TODO: Could this be done more efficiently?
-    w[offset:end] = (2 * rand(togen) - 1) / 1000
+    w[offset:end] = (2 * rand(togen) .- 1) / 1000
 end
 
 function evaluate(weights, featids, trans, conf)
