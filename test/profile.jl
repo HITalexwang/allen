@@ -29,6 +29,7 @@ datapath = string(respath, "talbanken/train.conllx")
 
 open(datapath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
+    Profile.init(2^32, 0.001)
     @profile train(sents, 1)
     Profile.print()
 end
