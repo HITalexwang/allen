@@ -66,8 +66,8 @@ function evaluate(weights, featids, trans, conf)
     # Featurise the resulting configuration.
     featrows = Int[]
     for feat in featurise(conf)
-        push!(featrows,
-            get!(() -> length(featids) + 1, featids, feat))
+        featid = get!(featids, feat, length(featids) + 1)
+        push!(featrows, featid)
     end
 
     # Revert to the original configuration.
