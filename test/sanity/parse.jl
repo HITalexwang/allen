@@ -23,11 +23,12 @@ datapath = string(respath, "talbanken/train.conllx")
 
 # Parse using an oracle and ensure that we get the gold annotations back.
 open(datapath, "r") do data_f
+    codes = coder()
     sentnum = 0
     for goldsent in conllxparse(data_f, useproj=true)
         sentnum += 1
         try
-            predsent = parse(goldsent, oracle)
+            predsent = parse(goldsent, oracle, codes)
             @test isequal(predsent, goldsent)
         catch e
             println("Sentence: $sentnum")
@@ -39,7 +40,8 @@ end
 
 # Parse using a random oracle and ensure that we do not crash.
 open(datapath, "r") do data_f
+    codes = coder()
     for goldsent in conllxparse(data_f, useproj=true)
-        parse(goldsent, randoracle)
+        parse(goldsent, randoracle, codes)
     end
 end

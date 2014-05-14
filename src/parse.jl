@@ -19,14 +19,14 @@ using CoNLLX
 using DepGraph
 using Hybrid
 
-function parse(sent::Sentence, predict::Function)
-    conf = config(sent)
+function parse(sent::Sentence, predict::Function, coder)
+    conf = config(sent, coder)
     while !isterminal(conf)
         trans = predict(conf)
         apply!(conf, trans)
     end
 
-    return sentence(conf.graph)
+    return sentence(conf.graph, coder)
 end
 
 # TODO: Is it a good idea to override these?
@@ -212,6 +212,7 @@ const STACKED = false
 # TODO: Should use an iterator.
 function train(sents::Sentences, epochs)
     #println("Training:")
+    codes = coder()
     weights = Float64[0.0]
     uniforminit(weights)
     featids = Dict{String, Uint}()
@@ -225,7 +226,7 @@ function train(sents::Sentences, epochs)
         # TODO: Minibatches.
         for sent in sents
             # Parse the sentence.
-            conf = config(sent)
+            conf = config(sent, codes)
             while !isterminal(conf)
                 if !STACKED
                     goldtrans, goldfeats, besttrans, bestfeats = trainpred(

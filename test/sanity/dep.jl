@@ -21,7 +21,8 @@ respath = string(dirname(source_path()), "/../../res/")
 debugpath = string(respath, "debug.conllx")
 
 open(debugpath, "r") do debug_f
+    codes = coder()
     for sent in conllxparse(debug_f)
-        dgraph(sent)
+        dgraph(sent, codes)
     end
 end

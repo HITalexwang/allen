@@ -9,7 +9,7 @@
 
 module DepGraph
 
-export Graph, ROOTID, Vertex, deledge!, dgraph, edge!, sentence
+export Graph, ROOTID, Vertex, coder, deledge!, dgraph, edge!, sentence
 
 require("conllx.jl")
 
@@ -19,8 +19,8 @@ using CoNLLX
 
 type Vertex
     id::Uint
-    form::String
-    postag::String
+    form::Uint
+    postag::Uint
     head::Uint
     deprel::String
     dependents::Array{Uint}
@@ -37,26 +37,53 @@ function show(io::IO, v::Vertex)
         "rvalency=$(v.rvalency))"))
 end
 
-function vertex(t::Token)
-    return Vertex(t.id, t.form, t.cpostag, t.head, t.deprel, Uint[], 0, 0)
+function vertex(t::Token, coder)
+    return Vertex(t.id, encode(t.form, coder), encode(t.cpostag, coder),
+        t.head, t.deprel, Uint[], 0, 0)
 end
 
-function token(v::Vertex)
-    return Token(v.id, v.form, NOVAL, v.postag, NOVAL, NOVAL, v.head,
-        v.deprel, NOHEAD, NOVAL)
+function token(v::Vertex, coder)
+    return Token(v.id, decode(v.form, coder), NOVAL, decode(v.postag, coder),
+        NOVAL, NOVAL, v.head, v.deprel, NOHEAD, NOVAL)
 end
 
 const ROOTID = 1
 
-root() = Vertex(ROOTID, "<ROOT>", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
+ROOTTOK = Token(ROOTID, "<ROOT>", NOVAL, NOVAL, NOVAL, NOVAL, NOHEAD, NOVAL,
+    NOHEAD, NOVAL)
 
 typealias Graph Array{Vertex}
 
-function dgraph(sent::Sentence)
+# We encode the vocabulary and PoS-tags as integers for faster featurisation.
+type Coder
+    enc::Dict{String, Uint}
+    dec::Dict{Uint, String}
+end
+
+# TODO: What should we call this function really?
+coder() = Coder(Dict{String, Uint}(), Dict{Uint, String}())
+
+function encode(str, coder)
+    code = get!(coder.enc, str, length(coder.enc) + 1)
+    coder.dec[code] = str
+    return code
+end
+
+function decode(code, coder)
+    str = get(coder.dec, code, nothing)
+
+    if str == nothing
+        error("Unable to decode \"$code\"")
+    end
+
+    return str
+end
+
+function dgraph(sent::Sentence, coder)
     graph = Vertex[]
-    push!(graph, root())
+    push!(graph, vertex(ROOTTOK, coder))
     for tok in sent
-        push!(graph, vertex(tok))
+        push!(graph, vertex(tok, coder))
     end
 
     # Add existing information (if any).
@@ -74,10 +101,10 @@ function dgraph(sent::Sentence)
     return graph
 end
 
-function sentence(graph::Graph)
+function sentence(graph::Graph, coder)
     sent = Token[]
     for i in 2:length(graph)
-        push!(sent, token(graph[i]))
+        push!(sent, token(graph[i], coder))
     end
 
     return sent

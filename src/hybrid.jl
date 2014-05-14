@@ -33,8 +33,8 @@ function show(io::IO, c::Config)
         ')')
 end
 
-function config(sent::Sentence)
-    graph = dgraph(sent)
+function config(sent::Sentence, coder)
+    graph = dgraph(sent, coder)
     return Config(graph[1:1], reverse(graph[2:end]), graph)
 end
 
@@ -178,8 +178,10 @@ function randoracle(c::Config)
 end
 
 const NULLID = 0
+@assert NULLID != ROOTID
 
-const NULLVERT = Vertex(NULLID, "<NULL>", NOVAL, NOHEAD, NOVAL, Uint[], 0, 0)
+# All codes are [1...], we can thus use 0 for the null vertex codes.
+const NULLVERT = Vertex(NULLID, 0, 0, NOHEAD, NOVAL, Array(Uint, 0), 0, 0)
 
 # TODO: Use a co-routine.
 # Feature set used in "Training Deterministic Parsers with Non-Deterministic
