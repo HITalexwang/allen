@@ -96,7 +96,6 @@ function next(itr::CoNLLXParse, nada)
         if line[1] == '\n'
             if !isempty(sent)
                 return (sent, nothing)
-                sent = Token[]
             end
             continue
         end
