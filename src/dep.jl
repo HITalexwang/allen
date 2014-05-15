@@ -9,7 +9,7 @@
 
 module DepGraph
 
-export Graph, ROOTID, Vertex, coder, deledge!, dgraph, edge!, sentence
+export Graph, NULLVERT, ROOTID, Vertex, coder, deledge!, dgraph, edge!, sentence
 
 require("conllx.jl")
 
@@ -27,6 +27,9 @@ type Vertex
     # Left and right valency (the number of left/right dependents).
     lvalency::Uint
     rvalency::Uint
+    lmostdep::Vertex
+    rmostdep::Vertex
+    Vertex() = new()
 end
 
 function show(io::IO, v::Vertex)
@@ -37,9 +40,31 @@ function show(io::IO, v::Vertex)
         "rvalency=$(v.rvalency))"))
 end
 
+function vertex(id, form, postag)
+    v = Vertex()
+    v.id = id
+    v.form = form
+    v.postag = postag
+    v.head = NOHEAD
+    v.deprel = NOVAL
+    v.dependents = Uint[]
+    v.lvalency = 0
+    v.rvalency = 0
+    v.lmostdep = NULLVERT
+    v.rmostdep = NULLVERT
+    return v
+end
+
+function vertex(id, form, postag, head, deprel)
+    v = vertex(id, form, postag)
+    v.head = head
+    v.deprel = deprel
+    return v
+end
+
 function vertex(t::Token, coder)
-    return Vertex(t.id, encode(t.form, coder), encode(t.cpostag, coder),
-        t.head, t.deprel, Uint[], 0, 0)
+    vertex(t.id, encode(t.form, coder), encode(t.cpostag, coder),
+        t.head, t.deprel)
 end
 
 function token(v::Vertex, coder)
@@ -47,7 +72,23 @@ function token(v::Vertex, coder)
         NOVAL, NOVAL, v.head, v.deprel, NOHEAD, NOVAL)
 end
 
+const NULLID = 0
 const ROOTID = 1
+
+const NULLVERT = begin
+    v = Vertex()
+    v.id = NULLID
+    # All codes are [1...], we can thus use 0 for form and postag.
+    v.form = 0
+    v.postag = 0
+    v.head = NOHEAD
+    v.deprel = NOVAL
+    v.dependents = Array(Uint, 0)
+    v.lvalency = 0
+    v.rvalency = 0
+    v.lmostdep = v
+    v.rmostdep = v
+end
 
 ROOTTOK = Token(ROOTID, "<ROOT>", NOVAL, NOVAL, NOVAL, NOVAL, NOHEAD, NOVAL,
     NOHEAD, NOVAL)
@@ -116,8 +157,16 @@ function edge!(graph::Graph, dependent::Vertex, head::Vertex)
     push!(head.dependents, dependent.id)
     if dependent.id < head.id
         head.lvalency += 1
+        # Is this the left-most child as-of-yet?
+        if isequal(head.lmostdep, NULLVERT) || head.lmostdep.id > dependent.id
+            head.lmostdep = dependent
+        end
     else
         head.rvalency += 1
+        # Is this the right-most child as-of-yet?
+        if isequal(head.rmostdep, NULLVERT) || head.rmostdep.id < dependent.id
+            head.rmostdep = dependent
+        end
     end
 end
 

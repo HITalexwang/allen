@@ -215,7 +215,7 @@ function train(sents::Sentences, epochs)
     codes = coder()
     weights = Float64[0.0]
     uniforminit(weights)
-    featids = Dict{String, Uint}()
+    featids = Dict{FeatStruct, Uint}()
     # TODO: Use sizehint.
     #sizehint(featids, XXX)
     transs = transitions()

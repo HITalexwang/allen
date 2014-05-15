@@ -12,9 +12,9 @@
 module Hybrid
 
 # TODO: How do we write a long export statement?
-export apply!, config, featurise, islegal, isterminal, oracle, randoracle, transitions, undo!
+export FeatStruct, apply!, config, featurise, islegal, isterminal, oracle, randoracle, transitions, undo!
 
-import Base: isequal, show
+import Base: hash, isequal, show
 
 using DepGraph
 using CoNLLX
@@ -177,20 +177,71 @@ function randoracle(c::Config)
     return legal[rand(1:end)]
 end
 
-const NULLID = 0
-@assert NULLID != ROOTID
+type FeatStruct
+    id::Uint
+    arg1::Uint
+    arg2::Uint
+    arg3::Uint
+    arg4::Uint
+end
 
-# All codes are [1...], we can thus use 0 for the null vertex codes.
-const NULLVERT = Vertex(NULLID, 0, 0, NOHEAD, NOVAL, Array(Uint, 0), 0, 0)
+function hash(a::FeatStruct)
+    hash(a.id) $ hash(a.arg1) $ hash(a.arg2) $ hash(a.arg3) $ hash(a.arg4)
+end
 
-# TODO: Use a co-routine.
+function isequal(a::FeatStruct, b::FeatStruct)
+    (a.id == b.id && a.arg1 == b.arg1 && a.arg2 == b.arg2 && a.arg3 == b.arg3
+        && a.arg4 == b.arg4)
+end
+
+function fstruct(id, arg1, arg2=0, arg3=0, arg4=0)
+    FeatStruct(id, arg1, arg2, arg3, arg4)
+end
+
+# Allows us to generate the highly repetitive and painful featurisation code.
+macro featinject(feattype, fstructf, feats)
+    exret = Expr(:block)
+
+    seenfeats = Set()
+    featid = uint(0)
+    for ex in feats.args
+        # Ignore embedded line information.
+        if ex.head == :line
+            continue
+        end
+        # We assume that the non-id feature arguments are given as tuples.
+        if ex.head != :tuple
+            warn("ignoring expression $ex")
+            continue
+        end
+
+        @assert !in(ex, seenfeats) "feature template duplicate: $ex"
+        push!(seenfeats, ex)
+
+        featid += 1
+        # Call to the feature structure function.
+        fstructex = Expr(:call, fstructf, :($featid), ex.args...)
+        # Assignment into the feature vector.
+        #   := won't work, and below is the best hack I can come up with.
+        assignex = Expr(symbol("="), :(fvec[$featid]), fstructex)
+        push!(exret.args, assignex)
+    end
+
+    # Fixed-size feature allocation prior to the feature extraction.
+    allocex = Expr(symbol("="), :fvec, :(Array($feattype, $featid)))
+    unshift!(exret.args, allocex)
+    # Return the feature vector.
+    push!(exret.args, :(return fvec))
+
+    return exret
+end
+
+# TODO: Use a co-routine, slower?
 # Feature set used in "Training Deterministic Parsers with Non-Deterministic
 #   Oracles" by Goldberg et al. (2013).
-# XXX: Mention bug-fix, mail Goldberg.
-# TODO: How does redshift make this so damn fast?
+# TODO: Can we boost speed by eliminating some struct accesses using locals?
+# TODO: Enable inbounds later on?
 function featurise(c::Config)
-    feats = String[]
-
     # Short-hands.
     stack = c.stack
     buff = c.buff
@@ -202,68 +253,92 @@ function featurise(c::Config)
     b0 = !isempty(buff) ? buff[end] : NULLVERT
     b1 = length(buff) > 1 ? buff[end-1] : NULLVERT
 
-    # Single tokens.
-    for (name, tok) in (
-        ("s0", s0),
-        ("s1", s1),
-        ("b0", b0),
-        ("b1", b1),
-        )
-        push!(feats, string(name, ".form", "=>", tok.form))
-        push!(feats, string(name, ".postag", "=>", tok.postag))
-        push!(feats, string(name, ".form", "|", name, ".postag",
-            "=>", tok.form, "|", tok.postag))
+    # Slight macro abuse to inject the feature templates.
+    @featinject FeatStruct fstruct begin
+        # First order.
+        (s0.form, )
+        (s0.postag, )
+        (s0.form,   s0.postag)
+        (s1.form, )
+        (s1.postag, )
+        (s1.form,   s1.postag)
+        (b0.form, )
+        (b0.postag, )
+        (b0.form,   b0.postag)
+        (b1.form, )
+        (b1.postag, )
+        (b1.form,   b1.postag)
+
+        # Second order.
+        (s0.form,   s1.form)
+        (s0.postag, s1.postag)
+        (s0.postag, b0.postag)
+
+        (s0.form,   s0.postag,  s1.postag)
+        (s0.postag, s1.form,    s1.postag)
+        (s0.form,   s1.form,    s1.postag)
+        (s0.form,   s0.postag,  s1.form)
+        # Goldberg et al. (2013) repeats an earlier feature template here.
+        #   This is most likely an error, we correct it in order to conform
+        #   with the next template group.
+        #(s0.form,   s0.postag,  s1.postag)
+        (s1.form,   s1.postag,  b0.postag)
+
+        (s0.form,   b0.form)
+        # Goldberg et al. (2013) repeats a template here, we omit it.
+        #(s0.postag, b0.postag)
+        (s0.postag, b1.postag)
+
+        (s0.postag, b0.form,    b0.postag)
+        (s0.form,   b0.form,    b0.postag)
+        (s0.form,   s0.postag,  b0.form)
+        (b0.form,   b0.postag,  b1.postag)
+
+        # Third order.
+        (s0.postag, b0.postag,  b1.postag)
+        (s1.postag, s0.postag,  b0.postag)
+        (s0.form,   b0.postag,  b1.postag)
+        (s1.postag, s0.form,    b0.postag)
+
+        # Fourth order.
+        (s1.postag, s1.rmostdep.postag, b0.postag)
+        # Goldberg et al. (2013) used the same feature ID for the feature
+        #   above and below, we correct this in the macro call.
+        (s1.postag, s1.rmostdep.postag, s0.postag)
+        (s1.postag, s1.lmostdep.postag, s0.postag)
+        (s1.postag, s0.postag,          s0.lmostdep.postag)
+        (s1.postag, s0.rmostdep.postag, s0.postag)
+        (s0.postag, s1.lmostdep.postag, s0.form)
+        (s1.postag, s0.form,            s0.rmostdep.postag)
+        # Goldberg et al. (2013) used the same feature ID for the next feature
+        #   as for the one two steps above, we correct this in the macro call.
+        (s0.postag, s1.rmostdep.postag, s0.form)
+        # Goldberg et al. (2013) used the same feature ID for the next feature
+        #   as for the one two steps above, we correct this in the macro call.
+        (s1.postag, s0.form,            s0.lmostdep.postag)
+
+        (s0.postag, s0.rmostdep.postag, b0.postag)
+        # Goldberg et al. (2013) used the same feature ID for the feature
+        #   above and below, we correct this in the macro call.
+        (s0.postag, s0.rmostdep.postag, b1.postag)
+        (s0.postag, s0.lmostdep.postag, b0.postag)
+        (s0.postag, b0.postag,          b0.lmostdep.postag)
+        (s0.postag, s0.lmostdep.postag, b0.form)
+        (s0.postag, b0.form,            b0.lmostdep.postag)
+
+        (s0.postag, b0.postag,  b0.lmostdep.postag, s0.rmostdep.postag)
+        # Golberg et al. (2013) has a type in the ID for the following
+        #   feature, however, the ID still remains unique and should have
+        #   no classifier performance impact.
+        (s0.postag, s1.postag,  s0.lmostdep.postag, s1.rmostdep.postag)
+
+        # Fifth order.
+        (s2.postag, s1.postag,  s0.postag)
+        # Goldberg et al. (2013) uses the following two duplicates that should
+        #   have no impact on the classifier performance, we omit them.
+        #(s1.postag, s0.postag,  b0.postag)
+        #(s0.postag, b0.postag,  b1.postag)
     end
-
-    # Pairs of tokens.
-    for (aname, atok, bname, btok, cname, ctok) in (
-        ("s0", s0, "s1", s1, "b0", b0),
-        ("s0", s0, "b0", b0, "b1", b1),
-        )
-        # a.form,   b.form
-        push!(feats, string(aname, ".form", "|", bname, ".form",
-            "=>", atok.form, "|", btok.form))
-        # a.pos,    b.pos
-        push!(feats, string(aname, ".postag", "|", bname, ".postag",
-            "=>", atok.postag, "|", btok.postag))
-        # a.pos,    c.pos
-        push!(feats, string(aname, ".postag", "|", cname, ".postag",
-            "=>", atok.postag, "|", ctok.postag))
-
-        # a.form,   a.pos,  b.pos
-        push!(feats, string(aname, ".form", "|", aname, ".postag", "|",
-            bname, ".postag",
-            "=>", atok.form, "|", atok.postag, "|", btok.postag))
-        # a.pos,    b.form, b.pos
-        push!(feats, string(aname, ".postag", "|", bname, ".form", "|",
-            bname, ".postag",
-            "=>", atok.postag, "|", btok.form, "|", btok.postag))
-        # a.form,   b.form, b.pos
-        push!(feats, string(aname, ".form", "|", bname, ".form", "|",
-            bname, ".postag",
-            "=>", atok.form, "|", btok.form, "|", btok.postag))
-        # a.form,   a.pos,  b.form
-        push!(feats, string(aname, ".form", "|", aname, ".postag", "|",
-            bname, ".form",
-            "=>", atok.form, "|", atok.postag, "|", btok.form))
-        # Goldberg et al. (2013) repeats the first feature template here
-        #   for a=s0 and b=s1. This is most likely an error and we correct it.
-        # b.form,   b.pos,  c.pos
-        push!(feats, string(bname, ".form", "|", bname, ".postag", "|",
-            cname, ".postag",
-            "=>", btok.form, "|", btok.postag, "|", ctok.postag))
-    end
-
-    # Triplets of tokens.
-    # TODO:
-
-    # Quadruplets of tokens.
-    # TODO:
-
-    # Quintuplets of tokens.
-    # TODO:
-
-    return feats
 end
 
 end
