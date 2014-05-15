@@ -278,14 +278,14 @@ function featurise(c::Config)
         (s0.postag, s1.form,    s1.postag)
         (s0.form,   s1.form,    s1.postag)
         (s0.form,   s0.postag,  s1.form)
-        # Goldberg et al. (2013) repeats an earlier feature template here.
-        #   This is most likely an error, we correct it in order to conform
-        #   with the next template group.
+        # Goldberg et al. repeats an earlier feature template here. This is
+        #   most likely an error, we correct it in order to conform with
+        #   the next template group.
         #(s0.form,   s0.postag,  s1.postag)
         (s1.form,   s1.postag,  b0.postag)
 
         (s0.form,   b0.form)
-        # Goldberg et al. (2013) repeats a template here, we omit it.
+        # Goldberg et al. repeats a template here, we omit it.
         #(s0.postag, b0.postag)
         (s0.postag, b1.postag)
 
@@ -302,24 +302,24 @@ function featurise(c::Config)
 
         # Fourth order.
         (s1.postag, s1.rmostdep.postag, b0.postag)
-        # Goldberg et al. (2013) used the same feature ID for the feature
-        #   above and below, we correct this in the macro call.
+        # Goldberg et al. used the same feature ID for the feature above
+        #   and below, we correct this in the macro call.
         (s1.postag, s1.rmostdep.postag, s0.postag)
         (s1.postag, s1.lmostdep.postag, s0.postag)
         (s1.postag, s0.postag,          s0.lmostdep.postag)
         (s1.postag, s0.rmostdep.postag, s0.postag)
         (s0.postag, s1.lmostdep.postag, s0.form)
         (s1.postag, s0.form,            s0.rmostdep.postag)
-        # Goldberg et al. (2013) used the same feature ID for the next feature
-        #   as for the one two steps above, we correct this in the macro call.
+        # Goldberg et al. used the same feature ID for the next feature as for
+        #   the one two steps above, we correct this in the macro call.
         (s0.postag, s1.rmostdep.postag, s0.form)
-        # Goldberg et al. (2013) used the same feature ID for the next feature
-        #   as for the one two steps above, we correct this in the macro call.
+        # Goldberg et al. used the same feature ID for the next feature as for
+        #   the one two steps above, we correct this in the macro call.
         (s1.postag, s0.form,            s0.lmostdep.postag)
 
         (s0.postag, s0.rmostdep.postag, b0.postag)
-        # Goldberg et al. (2013) used the same feature ID for the feature
-        #   above and below, we correct this in the macro call.
+        # Goldberg et al. used the same feature ID for the feature above
+        #   and below, we correct this in the macro call.
         (s0.postag, s0.rmostdep.postag, b1.postag)
         (s0.postag, s0.lmostdep.postag, b0.postag)
         (s0.postag, b0.postag,          b0.lmostdep.postag)
@@ -327,15 +327,15 @@ function featurise(c::Config)
         (s0.postag, b0.form,            b0.lmostdep.postag)
 
         (s0.postag, b0.postag,  b0.lmostdep.postag, s0.rmostdep.postag)
-        # Golberg et al. (2013) has a type in the ID for the following
-        #   feature, however, the ID still remains unique and should have
-        #   no classifier performance impact.
+        # Golberg et al. has a typo in the ID for the following feature,
+        #   however, the ID still remains unique and should have no classifier
+        #   performance impact.
         (s0.postag, s1.postag,  s0.lmostdep.postag, s1.rmostdep.postag)
 
         # Fifth order.
         (s2.postag, s1.postag,  s0.postag)
-        # Goldberg et al. (2013) uses the following two duplicates that should
-        #   have no impact on the classifier performance, we omit them.
+        # Goldberg et al. uses the following two duplicates that should have
+        #   no impact on the classifier performance, we omit them.
         #(s1.postag, s0.postag,  b0.postag)
         #(s0.postag, b0.postag,  b1.postag)
     end
