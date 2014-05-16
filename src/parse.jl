@@ -65,7 +65,8 @@ function evaluate(weights, featids, trans, conf)
 
     # Featurise the resulting configuration.
     featrows = Int[]
-    for feat in featurise(conf)
+    feats = featurise(conf)
+    for feat in feats
         featid = get!(featids, feat, length(featids) + 1)
         push!(featrows, featid)
     end
@@ -157,7 +158,8 @@ function trainpredstacked(weights, featids, transs, conf)
         undo = apply!(conf, trans)
 
         # Featurise the resulting configuration.
-        for feat in featurise(conf)
+        feats = featurise(conf)
+        for feat in feats
             push!(featrows,
                 get!(() -> length(featids) + 1, featids, feat))
             # TODO: Could be done in a single batch at the end.
