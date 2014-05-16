@@ -79,8 +79,6 @@ function evaluate(weights, featids, trans, conf)
         weights[oldsize + 1:end] = 0
     end
 
-    # TODO: Which one is faster?
-    #score = (weights.' * feats)[1]
     score = (feats.' * weights)[1]
 
     return (score, feats)
