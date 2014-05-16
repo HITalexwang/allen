@@ -23,10 +23,14 @@ datapath = string(respath, "talbanken/train.conllx")
 
 open(datapath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
-    before = time()
-    train(sents, 1)
-    duration = time() - before
-    throughput = length(sents) / duration
-    @printf("Unlabelled training throughput: %.1f sentence(s) per second\n",
-        throughput)
+    trainitr = train(sents, epochs=1)
+    for pass in 1:2
+        before = time()
+        next(trainitr)
+        duration = time() - before
+        throughput = length(sents) / duration
+        print("Unlabelled training throughput ")
+        @printf("(pass: %d): %.1f ", pass, throughput)
+        println("sentence(s) per second")
+    end
 end

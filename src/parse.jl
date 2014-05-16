@@ -7,9 +7,9 @@
 
 module Parse
 
-export isequal, parse, train
+export done, isequal, next, parse, start, train
 
-import Base.isequal
+import Base: done, isequal, start, next
 
 require("conllx.jl")
 require("dep.jl")
@@ -135,48 +135,78 @@ end
 
 const EARLYUPDATES = false
 
-# TODO: Given which arguments?
-# TODO: Should use an iterator.
-function train(sents::Sentences, epochs)
-    #println("Training:")
-    codes = coder()
-    weights = Float64[0.0]
-    uniforminit(weights)
-    featids = Dict{FeatStruct, Uint}()
-    # TODO: Use sizehint.
-    #sizehint(featids, XXX)
-    transs = transitions()
+type Model
+    # XXX: I dislike this... how can we fix it?
+    #   type(Symbol, Label)?
+    transs
+    weights::Array{Float64, 1}
+    featids::Dict{FeatStruct, Uint}
+    coder::Coder
+end
 
-    for epoch in 1:epochs
-        # Shuffle the sentences for each pass.
-        shuffle!(sents)
-        # TODO: Minibatches.
-        for sent in sents
-            # Parse the sentence.
-            conf = config(sent, codes)
-            while !isterminal(conf)
-                goldtrans, goldfeats, besttrans, bestfeats = trainpred(
-                    weights, featids, transs, conf)
+# TODO: Use sizehint for featids?
+model() = Model(transitions(), Float64[], Dict{FeatStruct, Uint}(), coder())
 
-                if !isequal(besttrans, goldtrans)
-                    # Update the weight vector (perceptron update).
-                    rows, _, vals = findnz(goldfeats)
-                    weights[rows] += vals
-                    rows, _, vals = findnz(bestfeats)
-                    weights[rows] -= vals
-                end
+type Train
+    epoch::Uint
+    epochs::Uint
+    sents::Sentences
+    model::Model
+end
 
-                if EARLYUPDATES
-                    # Skip to the next sentence.
-                    break
-                else
-                    # Proceed along the gold path.
-                    # TODO: Could use a dynamic oracle for exploration.
-                    apply!(conf, goldtrans)
-                end
+# TODO: I dislike the variable name `usemodel`.
+function train(sents::Sentences; epochs=0, usemodel=nothing)
+    if usemodel == nothing
+        usemodel = model()
+    end
+
+    return Train(0, epochs, sents, usemodel)
+end
+
+start(::Train) = nothing
+
+function next(itr::Train, nada)
+    itr.epoch += 1
+
+    # Short-hand.
+    model = itr.model
+
+    # Shuffle the sentences before for each pass.
+    shuffle!(itr.sents)
+    # TODO: Minibatches.
+    for sent in itr.sents
+        # Parse the sentence.
+        conf = config(sent, model.coder)
+        while !isterminal(conf)
+            goldtrans, goldfeats, besttrans, bestfeats = trainpred(
+                model.weights, model.featids, model.transs, conf)
+
+            if !isequal(besttrans, goldtrans)
+                # Update the weight vector (perceptron update).
+                rows, _, vals = findnz(goldfeats)
+                model.weights[rows] += vals
+                rows, _, vals = findnz(bestfeats)
+                model.weights[rows] -= vals
+            end
+
+            if EARLYUPDATES
+                # Skip to the next sentence.
+                break
+            else
+                # Proceed along the gold path.
+                # TODO: Could use a dynamic oracle for exploration.
+                apply!(conf, goldtrans)
             end
         end
     end
+
+    return (model, nothing)
 end
+
+# Helper function to more naturally progress the iterator by masking the
+#   internals of the iterator protocol.
+next(itr::Train) = next(itr, nothing)[1]
+
+done(itr::Train, nada) = itr.epochs != 0 && itr.epoch >= itr.epochs
 
 end

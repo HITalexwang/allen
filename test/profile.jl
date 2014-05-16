@@ -28,10 +28,16 @@ repopath = string(dirname(source_path()), "/..")
 datapath = string(repopath, "/res/talbanken/train.conllx")
 reportpath = string(repopath, "/wrk/profile.txt")
 
+function run(sents)
+    for _ in train(sents, epochs=2)
+        nothing
+    end
+end
+
 open(datapath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
     Profile.init(2^24, 0.001)
-    @profile train(sents, 1)
+    @profile run(sents)
     open(reportpath, "w") do report_f
         Profile.print(report_f)
     end
