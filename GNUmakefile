@@ -8,6 +8,8 @@ MALT_VER=1.8
 MALT_URL=http://maltparser.org/dist/maltparser-${MALT_VER}.tar.gz
 FETCH_CMD=wget
 
+SRC=${shell find src test -name '*.jl'}
+
 ${WRK}:
 	mkdir "${WRK}"
 
@@ -28,9 +30,13 @@ perf:
 	julia test/perf/perf.jl
 
 # TODO: Depend on sanity?
-.PHONY: profile
-profile:
+${WRK}/profile.txt: ${WRK} ${SRC}
 	julia test/profile.jl
+
+.PHONY: profile
+profile: ${WRK}/profile.txt
+	cat $<
+	@echo
 
 .PHONY: clean
 clean:

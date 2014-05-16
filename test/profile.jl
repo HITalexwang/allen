@@ -24,12 +24,15 @@ using DepGraph
 using Hybrid
 using Parse
 
-respath = string(dirname(source_path()), "/../res/")
-datapath = string(respath, "talbanken/train.conllx")
+repopath = string(dirname(source_path()), "/..")
+datapath = string(repopath, "/res/talbanken/train.conllx")
+reportpath = string(repopath, "/wrk/profile.txt")
 
 open(datapath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
     Profile.init(2^24, 0.001)
     @profile train(sents, 1)
-    Profile.print()
+    open(reportpath, "w") do report_f
+        Profile.print(report_f)
+    end
 end
