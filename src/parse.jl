@@ -51,14 +51,6 @@ function isequal(a::Sentence, b::Sentence)
     return true
 end
 
-# A uniform [-0.001, 0.001) distribution, we use this for the weight vector
-#   initialisation since we don't know the number of features before-hand.
-function uniforminit(w; offset=1)
-    togen = length(w) - (offset - 1)
-    # TODO: Could this be done more efficiently?
-    w[offset:end] = (2 * rand(togen) .- 1) / 1000
-end
-
 function evaluate(weights, featids, trans, conf)
     # Apply the transition.
     undo = apply!(conf, trans)
@@ -84,7 +76,7 @@ function evaluate(weights, featids, trans, conf)
     if length(weights) != numfeats
         oldsize = length(weights)
         resize!(weights, numfeats)
-        uniforminit(weights, offset=oldsize+1)
+        weights[oldsize + 1:end] = 0
     end
 
     # TODO: Which one is faster?
