@@ -133,82 +133,7 @@ function trainpred(weights, featids, transs, conf)
     return (goldtrans, goldfeats, besttrans, bestfeats)
 end
 
-# TODO: This appears to be slow and inefficient, remove or improve?
-function trainpredstacked(weights, featids, transs, conf)
-    goldtrans = oracle(conf)
-    legaltranss = collect(filter(t -> islegal(conf, t), transs))
-
-    if length(legaltranss) == 1
-        besttrans = legaltranss[1]
-        # There is only one possibly transition, use it.
-        return (goldtrans, nothing, besttrans, nothing)
-    end
-
-    # Sparse rows and columns.
-    # XXX: Should really be Uint, but sparse is nutty.
-    featrows = Int[]
-    featcols = Int[]
-
-    # Featurise all legal transitions.
-    transnum = 0
-    for trans in legaltranss
-        transnum += 1
-
-        # Apply the transition.
-        undo = apply!(conf, trans)
-
-        # Featurise the resulting configuration.
-        feats = featurise(conf)
-        for feat in feats
-            push!(featrows,
-                get!(() -> length(featids) + 1, featids, feat))
-            # TODO: Could be done in a single batch at the end.
-            push!(featcols, transnum)
-        end
-
-        # Revert to the original configuration.
-        undo!(conf, undo)
-    end
-
-    numfeats = length(featids)
-
-    feats = sparse(featrows, featcols,
-        # TODO: USE spones... somehow...
-        ones(Float64, length(featrows)), numfeats, transnum)
-
-    # Extend the weight vector if necessary (new features).
-    if length(weights) != numfeats
-        oldsize = length(weights)
-        resize!(weights, numfeats)
-        uniforminit(weights, offset=oldsize+1)
-    end
-
-    # TODO: Which one is faster?
-    #scores = weights.' * feats
-    scores = feats.' * weights
-
-    # Add the margin.
-    transnum = 0
-    for trans in legaltranss
-        transnum += 1
-        if !isequal(trans, goldtrans)
-            # TODO: Extract as a parameter.
-            scores[transnum] += 1
-        end
-    end
-
-    goldfeats = feats[findfirst(legaltranss, goldtrans), :]
-
-    besttrans = legaltranss[indmax(scores)]
-    bestfeats = feats[findfirst(legaltranss, besttrans), :]
-
-    return (goldtrans, goldfeats, besttrans, bestfeats)
-end
-
 const EARLYUPDATES = false
-# Stack all the scoring decisions into a single matrix multiplication, this
-#   seems to be much much slower though for some reason.
-const STACKED = false
 
 # TODO: Given which arguments?
 # TODO: Should use an iterator.
@@ -230,13 +155,8 @@ function train(sents::Sentences, epochs)
             # Parse the sentence.
             conf = config(sent, codes)
             while !isterminal(conf)
-                if !STACKED
-                    goldtrans, goldfeats, besttrans, bestfeats = trainpred(
-                        weights, featids, transs, conf)
-                else
-                    goldtrans, goldfeats, besttrans, bestfeats = (
-                        trainpredstacked(weights, featids, transs, conf))
-                end
+                goldtrans, goldfeats, besttrans, bestfeats = trainpred(
+                    weights, featids, transs, conf)
 
                 if !isequal(besttrans, goldtrans)
                     # Update the weight vector (perceptron update).
