@@ -35,8 +35,6 @@ ${WRK}/profile.txt: ${WRK} ${SRC}
 
 .PHONY: profile
 profile: ${WRK}/profile.txt
-	cat $<
-	@echo
 
 .PHONY: clean
 clean:
