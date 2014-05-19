@@ -177,16 +177,16 @@ function next(itr::Train, nada)
                 model.weights[rows] += vals
                 rows, _, vals = findnz(bestfeats)
                 model.weights[rows] -= vals
+
+                if EARLYUPDATES
+                    # Skip to the next sentence.
+                    break
+                end
             end
 
-            if EARLYUPDATES
-                # Skip to the next sentence.
-                break
-            else
-                # Proceed along the gold path.
-                # TODO: Could use a dynamic oracle for exploration.
-                apply!(conf, goldtrans)
-            end
+            # Proceed along the gold path.
+            # TODO: Could use a dynamic oracle for exploration.
+            apply!(conf, goldtrans)
         end
     end
 
