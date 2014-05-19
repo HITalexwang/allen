@@ -126,17 +126,29 @@ end
 undo!(conf::Config, ::ShiftUndo) = push!(conf.buff, pop!(conf.stack))
 
 function undo!(conf::Config, undo::LeftArcUndo)
-    deledge!(conf.graph, undo.dependent, conf.buff[end])
-    undo.dependent.head = undo.oldhead
-    undo.dependent.deprel = undo.olddeprel
-    push!(conf.stack, undo.dependent)
+    head = config.buff[end]
+    dependent = undo.dependent
+
+    deledge!(conf.graph, dependent, head)
+
+    # Preserve any previous gold annotations.
+    dependent.head = undo.oldhead
+    dependent.deprel = undo.olddeprel
+
+    push!(conf.stack, dependent)
 end
 
 function undo!(conf::Config, undo::RightArcUndo)
-    deledge!(conf.graph, undo.dependent, conf.stack[end])
-    undo.dependent.head = undo.oldhead
-    undo.dependent.deprel = undo.olddeprel
-    push!(conf.stack, undo.dependent)
+    head = conf.stack[end]
+    dependent = undo.dependent
+
+    deledge!(conf.graph, dependent, head)
+
+    # Preserve any previous gold annotations.
+    dependent.head = undo.oldhead
+    dependent.deprel = undo.olddeprel
+
+    push!(conf.stack, dependent)
 end
 
 # TODO: Variant with all deprels!
