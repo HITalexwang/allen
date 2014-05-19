@@ -206,6 +206,12 @@ function isequal(a::FeatStruct, b::FeatStruct)
         && a.arg4 == b.arg4)
 end
 
+function show(io::IO, fs::FeatStruct)
+    print(io, string("FeatStruct(id=$(fs.id), $(fs.arg1), $(fs.arg2), ",
+        "$(fs.arg3), $(fs.arg4))"))
+end
+
+# TODO: Turn into a constructor instead?
 function fstruct(id, arg1, arg2=0, arg3=0, arg4=0)
     FeatStruct(id, arg1, arg2, arg3, arg4)
 end
