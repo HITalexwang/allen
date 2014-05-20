@@ -126,7 +126,7 @@ end
 undo!(conf::Config, ::ShiftUndo) = push!(conf.buff, pop!(conf.stack))
 
 function undo!(conf::Config, undo::LeftArcUndo)
-    head = config.buff[end]
+    head = conf.buff[end]
     dependent = undo.dependent
 
     deledge!(conf.graph, dependent, head)
