@@ -60,8 +60,18 @@ function blind!(t::Token)
     t.deprel, t.pdeprel = (NOVAL, NOVAL)
 end
 
-typealias Sentence Array{Token}
-typealias Sentences Array{Sentence}
+typealias Sentence Array{Token, 1}
+
+function show(io::IO, s::Sentence)
+    print(io, join([string(t) for t in s], '\n'))
+end
+
+typealias Sentences Array{Sentence, 1}
+
+function show(io::IO, ss::Sentences)
+    print(io, join([string(s) for s in ss], "\n\n"))
+    print(io, '\n')
+end
 
 # Not the friendliest of expressions, but it will do the trick.
 const CONLLXREGEX = Regex(string("^([0-9]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)\t",
