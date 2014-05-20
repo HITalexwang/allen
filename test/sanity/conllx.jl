@@ -29,10 +29,23 @@ end
 
 before = join(lines, "")
 
-parsed = collect(conllxparse(IOBuffer(before)))
+parsed = collect(Sentence, conllxparse(IOBuffer(before)))
 buff = IOBuffer()
 print(buff, parsed)
 seekstart(buff)
 after = strip(readall(buff))
 
-@test after == strip(before)
+cmp = strip(before)
+if after != cmp
+    before_f = tempname()
+    after_f = tempname()
+    try
+        run(`echo $cmp` |> before_f)
+        run(`echo $after` |> after_f)
+        run(ignorestatus(`diff -u $before_f $after_f`))
+    finally
+        rm(after_f)
+        rm(before_f)
+    end
+    @assert false
+end
