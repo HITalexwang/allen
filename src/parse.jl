@@ -135,7 +135,7 @@ type Model
 end
 
 # TODO: Use sizehint for featids?
-model() = Model(transitions(), Float64[], Dict{FeatStruct, Uint}(), coder())
+Model() = Model(transitions(), Float64[], Dict{FeatStruct, Uint}(), Coder())
 
 type Train
     epoch::Uint
@@ -144,13 +144,12 @@ type Train
     model::Model
 end
 
-# TODO: I dislike the variable name `usemodel`.
-function train(sents::Sentences; epochs=0, usemodel=nothing)
-    if usemodel == nothing
-        usemodel = model()
+function train(sents::Sentences; epochs=0, model=nothing)
+    if model == nothing
+        model = Model()
     end
 
-    return Train(0, epochs, sents, usemodel)
+    return Train(0, epochs, sents, model)
 end
 
 start(::Train) = nothing

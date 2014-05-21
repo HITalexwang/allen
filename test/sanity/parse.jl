@@ -18,17 +18,18 @@ using DepGraph
 using Hybrid
 using Parse
 
-respath = string(dirname(source_path()), "/../../res/")
-datapath = string(respath, "talbanken/train.conllx")
+respath = string(dirname(source_path()), "/../../res")
+debugpath = string(respath, "/debug.conllx")
+datapath = string(respath, "/talbanken/train.conllx")
 
 # Parse using an oracle and ensure that we get the gold annotations back.
 open(datapath, "r") do data_f
-    codes = coder()
+    coder = Coder()
     sentnum = 0
     for goldsent in conllxparse(data_f, useproj=true)
         sentnum += 1
         try
-            predsent = parse(goldsent, oracle, codes)
+            predsent = parse(goldsent, oracle, coder)
             @test isequal(predsent, goldsent)
         catch e
             println("Sentence: $sentnum")
@@ -40,8 +41,8 @@ end
 
 # Parse using a random oracle and ensure that we do not crash.
 open(datapath, "r") do data_f
-    codes = coder()
+    coder = Coder()
     for goldsent in conllxparse(data_f, useproj=true)
-        parse(goldsent, randoracle, codes)
+        parse(goldsent, randoracle, coder)
     end
 end

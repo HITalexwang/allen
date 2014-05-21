@@ -11,20 +11,25 @@
 
 module Hybrid
 
-# TODO: How do we write a long export statement?
-export FeatStruct, apply!, config, featurise, islegal, isterminal, oracle, randoracle, transitions, undo!
-
-import Base: hash, isequal, show
+export FeatStruct, apply!, config, featurise, islegal, isterminal, oracle
+export randoracle, transitions, undo!
 
 using DepGraph
 using CoNLLX
 
 type Config
-    stack::Array{Vertex}
-    buff::Array{Vertex}
+    stack::Array{Vertex, 1}
+    buff::Array{Vertex, 1}
     graph::Graph
 end
 
+import Base: isequal
+function isequal(a::Config, b::Config)
+    (isequal(a.stack, b.stack) && isequal(a.buff, b.buff)
+        && isequal(a.graph, b.graph))
+end
+
+import Base: show
 function show(io::IO, c::Config)
     print(io, "Conf(",
         '[', join(map(v -> string(v.id), c.stack), ", "), ']',
@@ -51,6 +56,7 @@ end
 
 islegal(c::Config, ::Shift) = !isempty(c.buff)
 
+import Base: isequal
 isequal(::Shift, ::Shift) = true
 
 type LeftArc
@@ -77,6 +83,7 @@ function islegal(c::Config, ::LeftArc)
     return !isempty(c.stack) && !isempty(c.buff) && c.stack[end].id != ROOTID
 end
 
+import Base: isequal
 isequal(a::LeftArc, b::LeftArc) = a.deprel == b.deprel
 
 type RightArc
@@ -101,6 +108,7 @@ end
 
 islegal(c::Config, ::RightArc) = length(c.stack) > 1
 
+import Base: isequal
 isequal(a::RightArc, b::RightArc) = a.deprel == b.deprel
 
 type ShiftUndo
@@ -197,15 +205,18 @@ type FeatStruct
     arg4::Uint
 end
 
+import Base: hash
 function hash(a::FeatStruct)
     hash(a.id) $ hash(a.arg1) $ hash(a.arg2) $ hash(a.arg3) $ hash(a.arg4)
 end
 
+import Base: isequal
 function isequal(a::FeatStruct, b::FeatStruct)
     (a.id == b.id && a.arg1 == b.arg1 && a.arg2 == b.arg2 && a.arg3 == b.arg3
         && a.arg4 == b.arg4)
 end
 
+import Base: show
 function show(io::IO, fs::FeatStruct)
     print(io, string("FeatStruct(id=$(fs.id), $(fs.arg1), $(fs.arg2), ",
         "$(fs.arg3), $(fs.arg4))"))
@@ -256,7 +267,7 @@ end
 
 # TODO: Use a co-routine, slower?
 # Feature set used in "Training Deterministic Parsers with Non-Deterministic
-#   Oracles" by Goldberg et al. (2013).
+#   Oracles" by Goldberg et al. (2013) for the Hybrid model.
 # TODO: Can we boost speed by eliminating some struct accesses using locals?
 # TODO: Enable inbounds later on?
 function featurise(c::Config)
@@ -270,6 +281,13 @@ function featurise(c::Config)
 
     b0 = !isempty(buff) ? buff[end] : NULLVERT
     b1 = length(buff) > 1 ? buff[end-1] : NULLVERT
+
+    s0_lm = lmostdep(s0)
+    s1_lm = lmostdep(s1)
+    b0_lm = lmostdep(b0)
+
+    s0_rm = rmostdep(s0)
+    s1_rm = rmostdep(s1)
 
     # Slight macro abuse to inject the feature templates.
     @featinject FeatStruct fstruct begin
@@ -319,36 +337,36 @@ function featurise(c::Config)
         (s1.postag, s0.form,    b0.postag)
 
         # Fourth order.
-        (s1.postag, s1.rmostdep.postag, b0.postag)
+        (s1.postag, s1_rm.postag,    b0.postag)
         # Goldberg et al. used the same feature ID for the feature above
         #   and below, we correct this in the macro call.
-        (s1.postag, s1.rmostdep.postag, s0.postag)
-        (s1.postag, s1.lmostdep.postag, s0.postag)
-        (s1.postag, s0.postag,          s0.lmostdep.postag)
-        (s1.postag, s0.rmostdep.postag, s0.postag)
-        (s0.postag, s1.lmostdep.postag, s0.form)
-        (s1.postag, s0.form,            s0.rmostdep.postag)
+        (s1.postag, s1_rm.postag,   s0.postag)
+        (s1.postag, s1_lm.postag,   s0.postag)
+        (s1.postag, s0.postag,      s0_lm.postag)
+        (s1.postag, s0_rm.postag,   s0.postag)
+        (s0.postag, s1_lm.postag,   s0.form)
+        (s1.postag, s0.form,        s0_rm.postag)
         # Goldberg et al. used the same feature ID for the next feature as for
         #   the one two steps above, we correct this in the macro call.
-        (s0.postag, s1.rmostdep.postag, s0.form)
+        (s0.postag, s1_rm.postag,   s0.form)
         # Goldberg et al. used the same feature ID for the next feature as for
         #   the one two steps above, we correct this in the macro call.
-        (s1.postag, s0.form,            s0.lmostdep.postag)
+        (s1.postag, s0.form,        s0_lm.postag)
 
-        (s0.postag, s0.rmostdep.postag, b0.postag)
+        (s0.postag, s0_rm.postag,   b0.postag)
         # Goldberg et al. used the same feature ID for the feature above
         #   and below, we correct this in the macro call.
-        (s0.postag, s0.rmostdep.postag, b1.postag)
-        (s0.postag, s0.lmostdep.postag, b0.postag)
-        (s0.postag, b0.postag,          b0.lmostdep.postag)
-        (s0.postag, s0.lmostdep.postag, b0.form)
-        (s0.postag, b0.form,            b0.lmostdep.postag)
+        (s0.postag, s0_rm.postag,   b1.postag)
+        (s0.postag, s0_lm.postag,   b0.postag)
+        (s0.postag, b0.postag,      b0_lm.postag)
+        (s0.postag, s0_lm.postag,   b0.form)
+        (s0.postag, b0.form,        b0_lm.postag)
 
-        (s0.postag, b0.postag,  b0.lmostdep.postag, s0.rmostdep.postag)
+        (s0.postag, b0.postag,  b0_lm.postag,   s0_rm.postag)
         # Golberg et al. has a typo in the ID for the following feature,
         #   however, the ID still remains unique and should have no classifier
         #   performance impact.
-        (s0.postag, s1.postag,  s0.lmostdep.postag, s1.rmostdep.postag)
+        (s0.postag, s1.postag,  s0_lm.postag,   s1_rm.postag)
 
         # Fifth order.
         (s2.postag, s1.postag,  s0.postag)

@@ -21,12 +21,12 @@ datapath = string(respath, "talbanken/train.conllx")
 # Featurise along the gold path and measure the time consumption.
 open(datapath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
-    codes = coder()
+    coder = Coder()
 
     numcalls = 0
     duration = 0
     for sent in sents
-        conf = config(sent, codes)
+        conf = config(sent, coder)
         while !isterminal(conf)
             before = time()
             for _ in featurise(conf)
