@@ -26,3 +26,18 @@ open(debugpath, "r") do debug_f
         dgraph(sent, codes)
     end
 end
+
+# Equality checks.
+let
+    a = vertex(1, 2, 3, NOHEAD, NOVAL)
+    b = vertex(4, 5, 6, NOHEAD, NOVAL)
+    @test !isequal(a, b)
+end
+let
+    # Order independence for dependents.
+    a = vertex(1, 2, 3, NOHEAD, NOVAL)
+    b = vertex(1, 2, 3, NOHEAD, NOVAL)
+    push!(a.dependents, 17, 4711)
+    push!(b.dependents, 4711, 17)
+    @test isequal(a, b)
+end

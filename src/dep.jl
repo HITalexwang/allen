@@ -9,11 +9,10 @@
 
 module DepGraph
 
-export Coder, Graph, NULLVERT, ROOTID, Vertex, coder, deledge!, dgraph, edge!, sentence
+export Coder, Graph, NULLVERT, ROOTID, Vertex, vertex, coder, deledge!, dgraph
+export edge!, sentence
 
 require("conllx.jl")
-
-import Base: show
 
 using CoNLLX
 
@@ -23,21 +22,36 @@ type Vertex
     postag::Uint
     head::Uint
     deprel::String
-    dependents::Array{Uint}
+    # TODO: Should be an ordered set.
+    dependents::Array{Uint, 1}
     # Left and right valency (the number of left/right dependents).
     lvalency::Uint
     rvalency::Uint
+    # TODO: Should be heaps?
     lmostdep::Vertex
     rmostdep::Vertex
     Vertex() = new()
 end
 
+import Base: isequal
+function isequal(a::Vertex, b::Vertex)
+    (a.id == b.id && a.form == b.form && a.postag == b.postag
+        && isequal(a.deprel, b.deprel)
+        # Sort the dependents since they should act as ordered sets.
+        && sort(a.dependents) == sort(b.dependents)
+        && a.lvalency == b.lvalency && a.rvalency == b.rvalency
+        # Equality on-the-cheap to avoid infinite recursion.
+        && a.lmostdep.id == b.lmostdep.id && a.rmostdep.id == b.rmostdep.id)
+end
+
+import Base: show
 function show(io::IO, v::Vertex)
-    # TODO: Fix dependents.
+    deps = join(v.dependents, ", ")
     print(io, string("Vertex(id=$(v.id),form=$(v.form),postag=$(v.postag),",
-        "head=$(v.head),deprel=$(v.deprel),dependents=TODO,",
+        "head=$(v.head),deprel=$(v.deprel),dependents=[$deps],",
         "valency=$(valency(v)),lvalency=$(v.lvalency),",
-        "rvalency=$(v.rvalency))"))
+        "rvalency=$(v.rvalency),",
+        "lmostdep=$(v.lmostdep.id),rmostdep=$(v.rmostdep.id))"))
 end
 
 function vertex(id, form, postag)
@@ -93,7 +107,12 @@ end
 ROOTTOK = Token(ROOTID, "<ROOT>", NOVAL, NOVAL, NOVAL, NOVAL, NOHEAD, NOVAL,
     NOHEAD, NOVAL)
 
-typealias Graph Array{Vertex}
+typealias Graph Array{Vertex, 1}
+
+import Base: isequal
+function isequal(a::Graph, b::Graph)
+    length(a) == length(b) && all([isequal(ae, be) for (ae, be) in zip(a, b)])
+end
 
 # We encode the vocabulary and PoS-tags as integers for faster featurisation.
 type Coder
