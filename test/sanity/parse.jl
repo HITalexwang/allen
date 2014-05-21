@@ -46,3 +46,29 @@ open(datapath, "r") do data_f
         parse(goldsent, randoracle, coder)
     end
 end
+
+# Verify that each transition undo action is valid.
+open(debugpath, "r") do debug_f
+    transs = transitions()
+    coder = Coder()
+    for goldsent in conllxparse(debug_f, useproj=true)
+        conf = config(goldsent, coder)
+        # Walk some steps along the gold path to test different regions.
+        for _ in rand(0:length(goldsent))
+            if !isterminal(conf)
+                apply!(conf, oracle(conf))
+            end
+        end
+
+        for trans in transs
+            if !islegal(conf, trans)
+                continue
+            end
+
+            before = deepcopy(conf)
+            undo = apply!(conf, trans)
+            undo!(conf, undo)
+            @test isequal(conf, before)
+        end
+    end
+end
