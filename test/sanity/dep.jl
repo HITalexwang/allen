@@ -41,13 +41,31 @@ let
     b = Vertex(4, 5, 6, NOHEAD, NOVAL)
     @test !isequal(a, b)
 end
+
+# Sentence to dependency graph conversion.
 open(debugpath, "r") do debug_f
-    # Adding and removing edges.
+    coder = Coder()
+    sents = collect(Sentence, conllxparse(debug_f))
+    sent = sents[1]
+
+    let
+        g = dgraph(sent, coder)
+        @test !isempty(g[1].rdependents)
+    end
+    let
+        g = dgraph(sent, coder, blind=true)
+        root = g[1]
+        @test isempty(g[1].rdependents)
+    end
+end
+
+# Adding and removing edges.
+open(debugpath, "r") do debug_f
     coder = Coder()
     sents = collect(Sentence, conllxparse(debug_f, blind=true))
     sent = sents[1]
 
-    graph = dgraph(sent, coder)
+    graph = dgraph(sent, coder, blind=true)
     head = graph[1]
     dep = graph[3]
     headbefore = deepcopy(head)
@@ -61,8 +79,9 @@ open(debugpath, "r") do debug_f
     @test isequal(head, headbefore)
     @test isequal(dep, depbefore)
 end
+
+# Order independence for dependents.
 open(debugpath, "r") do debug_f
-    # Order independence for dependents.
     coder = Coder()
     sents = collect(Sentence, conllxparse(debug_f, blind=true))
     sent = sents[1]

@@ -39,7 +39,7 @@ function show(io::IO, c::Config)
 end
 
 function config(sent::Sentence, coder)
-    graph = dgraph(sent, coder)
+    graph = dgraph(sent, coder, blind=true)
     return Config(graph[1:1], reverse(graph[2:end]), graph)
 end
 

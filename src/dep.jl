@@ -128,21 +128,27 @@ function decode(code, coder)
 end
 
 # TODO: Rename as Graph?
-function dgraph(sent::Sentence, coder)
+function dgraph(sent::Sentence, coder; blind=false)
     graph = Vertex[]
     push!(graph, Vertex(ROOTTOK, coder))
     for tok in sent
         push!(graph, Vertex(tok, coder))
     end
 
+    # Do not add any edges (for training).
+    if blind
+        return graph
+    end
+
     # Add existing information (if any).
     for i in 2:length(graph)
         vert = graph[i]
         if vert.head != NOHEAD
+            head = graph[vert.head]
             if vert.deprel == NOVAL
-                edge!(graph, vert, graph[vert.head])
+                edge!(graph, vert, head)
             else
-                edge!(graph, vert, graph[vert.head], vert.deprel)
+                edge!(graph, vert, head, vert.deprel)
             end
         end
     end
@@ -201,12 +207,8 @@ end
 
 function deledge!(graph::Graph, dependent::Vertex, head::Vertex)
     dependent.head = NOHEAD
-    rmdep(head, dependent)
-end
-
-function deledge!(graph::Graph, dependent::Vertex, head::Vertex, deprel)
-    deledge!(graph, dependent, head)
     dependent.deprel = NOVAL
+    rmdep(head, dependent)
 end
 
 end
