@@ -110,16 +110,17 @@ function evaluate(weights, featids, trans, conf; train=false)
     undo = apply!(conf, trans)
 
     # Featurise the resulting configuration.
-    featrows = Int[]
     feats = featurise(conf)
-    for feat in feats
-        # TODO: Put the conditional outside the loop?
-        if train
+    featrows = Int[]
+    if train
+        for feat in feats
             featid = get!(featids, feat, length(featids) + 1)
             push!(featrows, featid)
-        else
+        end
+    else
+        # Ignore previously unobserved features.
+        for feat in feats
             featid = get!(featids, feat, 0)
-            # Ignore previously unobserved features.
             if featid > 0
                 push!(featrows, featid)
             end
