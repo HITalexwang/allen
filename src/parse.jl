@@ -51,7 +51,61 @@ function isequal(a::Sentence, b::Sentence)
     return true
 end
 
-function evaluate(weights, featids, trans, conf)
+function predict(conf, model)
+    legaltranss = collect(filter(t -> islegal(conf, t), model.transs))
+
+    if length(legaltranss) == 1
+        # There is only one possibly transition, use it.
+        return legaltranss[1]
+    end
+
+    bestscore = -Inf
+    besttrans = nothing
+
+    for trans in legaltranss
+        score, _ = evaluate(model.weights, model.featids, trans, conf)
+        if score > bestscore
+            bestscore = score
+            besttrans = trans
+        end
+    end
+
+    return besttrans
+end
+
+function parse(sent, model)
+    conf = config(sent, model.coder)
+    while !isterminal(conf)
+        trans = predict(conf, model)
+        apply!(conf, trans)
+    end
+
+    return sentence(conf.graph, model.coder)
+end
+
+# TODO: Implement LAS as well.
+export evaluate
+function evaluate(model, goldsents)
+    total = 0
+    correct = 0
+    for goldsent in goldsents
+        predsent = parse(goldsent, model)
+        for (goldtok, predtok) in zip(goldsent, predsent)
+            total += 1
+            if predtok.head == goldtok.head
+                correct += 1
+            end
+        end
+    end
+
+    if correct < 1
+        return 0.0
+    else
+        return correct / total
+    end
+end
+
+function evaluate(weights, featids, trans, conf; train=false)
     # Apply the transition.
     undo = apply!(conf, trans)
 
@@ -59,8 +113,17 @@ function evaluate(weights, featids, trans, conf)
     featrows = Int[]
     feats = featurise(conf)
     for feat in feats
-        featid = get!(featids, feat, length(featids) + 1)
-        push!(featrows, featid)
+        # TODO: Put the conditional outside the loop?
+        if train
+            featid = get!(featids, feat, length(featids) + 1)
+            push!(featrows, featid)
+        else
+            featid = get!(featids, feat, 0)
+            # Ignore previously unobserved features.
+            if featid > 0
+                push!(featrows, featid)
+            end
+        end
     end
 
     # Revert to the original configuration.
@@ -90,7 +153,7 @@ function trainpred(weights, featids, transs, conf)
 
     if length(legaltranss) == 1
         besttrans = legaltranss[1]
-        # There is only one possibly transition, use it.
+        # There is only one possibly transition, no need to evaluate.
         return (goldtrans, nothing, besttrans, nothing)
     end
 
@@ -102,7 +165,7 @@ function trainpred(weights, featids, transs, conf)
     goldfeats = nothing
 
     for trans in legaltranss
-        score, feats = evaluate(weights, featids, trans, conf)
+        score, feats = evaluate(weights, featids, trans, conf, train=true)
 
         if !isequal(trans, goldtrans)
             # Add the margin.
