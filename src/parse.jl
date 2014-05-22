@@ -129,22 +129,21 @@ function evaluate(weights, featids, trans, conf; train=false)
     # Revert to the original configuration.
     undo!(conf, undo)
 
-    numfeats = length(featids)
-
-    feats = sparsevec(featrows,
-        # TODO: USE spones... somehow...
-        ones(Float64, length(featrows)), numfeats)
-
     # Extend the weight vector if we observed new features.
+    numfeats = length(featids)
     if length(weights) != numfeats
         oldsize = length(weights)
         resize!(weights, numfeats)
         weights[oldsize + 1:end] = 0
     end
 
-    score = (feats.' * weights)[1]
+    # Calculate feats' * weights.
+    score = 0.0
+    for featrow in featrows
+        score += weights[featrow]
+    end
 
-    return (score, feats)
+    return (score, featrows)
 end
 
 function trainpred(weights, featids, transs, conf)
@@ -235,10 +234,8 @@ function next(itr::Train, nada)
 
             if !isequal(besttrans, goldtrans)
                 # Update the weight vector (perceptron update).
-                rows, _, vals = findnz(goldfeats)
-                model.weights[rows] += vals
-                rows, _, vals = findnz(bestfeats)
-                model.weights[rows] -= vals
+                model.weights[goldfeats] .+= 1
+                model.weights[bestfeats] .-= 1
 
                 if EARLYUPDATES
                     # Skip to the next sentence.
