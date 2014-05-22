@@ -117,6 +117,14 @@ function evaluate(weights, featids, trans, conf; train=false)
             featid = get!(featids, feat, length(featids) + 1)
             push!(featrows, featid)
         end
+
+        # Extend the weight vector if we observed new features.
+        numfeats = length(featids)
+        if length(weights) != numfeats
+            oldsize = length(weights)
+            resize!(weights, numfeats)
+            weights[oldsize + 1:end] = 0
+        end
     else
         # Ignore previously unobserved features.
         for feat in feats
@@ -129,14 +137,6 @@ function evaluate(weights, featids, trans, conf; train=false)
 
     # Revert to the original configuration.
     undo!(conf, undo)
-
-    # Extend the weight vector if we observed new features.
-    numfeats = length(featids)
-    if length(weights) != numfeats
-        oldsize = length(weights)
-        resize!(weights, numfeats)
-        weights[oldsize + 1:end] = 0
-    end
 
     # Calculate feats' * weights.
     score = 0.0
