@@ -187,8 +187,6 @@ function trainpred(weights, featids, transs, conf)
     return (goldtrans, goldfeats, besttrans, bestfeats)
 end
 
-const EARLYUPDATES = false
-
 type Model
     # XXX: I dislike this... how can we fix it?
     #   type(Symbol, Label)?
@@ -206,14 +204,15 @@ type Train
     epochs::Uint
     sents::Sentences
     model::Model
+    earlyupdates::Bool
 end
 
-function train(sents::Sentences; epochs=0, model=nothing)
+function train(sents::Sentences; epochs=0, model=nothing, earlyupdates=false)
     if model == nothing
         model = Model()
     end
 
-    return Train(0, epochs, sents, model)
+    return Train(0, epochs, sents, model, earlyupdates)
 end
 
 start(::Train) = nothing
@@ -239,7 +238,7 @@ function next(itr::Train, nada)
                 model.weights[goldfeats] .+= 1
                 model.weights[bestfeats] .-= 1
 
-                if EARLYUPDATES
+                if itr.earlyupdates
                     # Skip to the next sentence.
                     break
                 end
