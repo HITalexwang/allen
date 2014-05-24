@@ -120,15 +120,16 @@ function evaluate(weights, featids, trans, conf; train=false)
 
         # Extend the weight vector if we observed new features.
         numfeats = length(featids)
-        if length(weights) != numfeats
+        if length(weights) < numfeats
             oldsize = length(weights)
             resize!(weights, numfeats)
+            # Initialise the new feature weights.
             weights[oldsize + 1:end] = 0
         end
     else
         # Ignore previously unobserved features.
         for feat in feats
-            featid = get!(featids, feat, 0)
+            featid = get(featids, feat, 0)
             if featid > 0
                 push!(featrows, featid)
             end
