@@ -10,10 +10,11 @@
 module DepGraph
 
 # Dependency graph.
-export Vertex, Graph, dgraph, sentence
-export edge!, deledge!
-export lmostdep, rmostdep
-export NULLVERT, ROOTID
+export
+    Vertex, Graph, dgraph, sentence,
+    edge!, deledge!,
+    lmostdep, rmostdep,
+    NULLVERT, ROOTID
 
 # String to ID encoder/decoder.
 export Coder, encode, decode
