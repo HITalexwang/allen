@@ -196,7 +196,6 @@ type Model
     coder::Coder
 end
 
-# TODO: Use sizehint for featids?
 Model() = Model(transitions(), Float64[], Dict{FeatStruct, Uint}(), Coder())
 
 type Train
