@@ -271,8 +271,7 @@ macro featurise(feattype, feattypef, initblk, featsblk)
 
         featid += 1
         # Call to the feature structure function.
-        # XXX: fstruct should be the fstructf argument.
-        fstructex = Expr(:call, fstruct, :($featid), ex.args...)
+        fstructex = Expr(:call, feattypef, :($featid), ex.args...)
         # Assignment into the feature vector.
         #   := won't work, and below is the best hack I can come up with.
         assignex = Expr(symbol("="), :(feats[$featid]), fstructex)
@@ -296,7 +295,7 @@ function featurise(c::Config)
     feats
 end
 
-@featurise(FeatStruct, feattypef,
+@featurise(FeatStruct, fstruct,
     begin
         # Short-hands.
         stack = c.stack
