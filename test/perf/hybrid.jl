@@ -23,15 +23,14 @@ open(datapath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
     coder = Coder()
 
+    feats = Array(FeatStruct, NUMFEATS)
     numcalls = 0
     duration = 0
     for sent in sents
         conf = config(sent, coder)
         while !isterminal(conf)
             before = time()
-            for _ in featurise(conf)
-                nothing
-            end
+            featurise!(feats, conf)
             duration += time() - before
             numcalls += 1
 

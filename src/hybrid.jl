@@ -11,8 +11,9 @@
 
 module Hybrid
 
+# TODO: Clean up the exports.
 export FeatStruct, apply!, config, featurise, islegal, isterminal, oracle
-export randoracle, transitions, undo!
+export randoracle, transitions, undo!, NUMFEATS, featurise!
 
 using DepGraph
 using CoNLLX
@@ -203,6 +204,14 @@ type FeatStruct
     arg2::Uint
     arg3::Uint
     arg4::Uint
+    # XXX: Why is this slower than `fstruct`?
+    #function FeatStruct(id, arg1, arg2=0, arg3=0, arg4=0)
+    #    FeatStruct(id, arg1, arg2, arg3, arg4)
+    #end
+end
+
+function fstruct(id, arg1, arg2=0, arg3=0, arg4=0)
+    FeatStruct(id, arg1, arg2, arg3, arg4)
 end
 
 import Base: hash
@@ -222,18 +231,31 @@ function show(io::IO, fs::FeatStruct)
         "$(fs.arg3), $(fs.arg4))"))
 end
 
-# TODO: Turn into a constructor instead?
-function fstruct(id, arg1, arg2=0, arg3=0, arg4=0)
-    FeatStruct(id, arg1, arg2, arg3, arg4)
-end
-
 # Allows us to generate the highly repetitive and painful featurisation code.
-macro featinject(feattype, fstructf, feats)
+#
+# Generates a constant and a function:
+#
+#   * NUMFEATS
+#   * featurise!(feats::Array{feattype,1}, c::Config)
+#
+macro featurise(feattype, feattypef, initblk, featsblk)
     exret = Expr(:block)
+
+    featurisef = esc(quote
+        function featurise!(feats::Array{$feattype,1}, c::Config)
+            # initblk
+            # feature extraction code generated from featblk
+        end
+    end)
+
+    # Nasty, the block holding the instructions of the featurise function.
+    featurisefblk = featurisef.args[1].args[2].args[2]
+    # Inject the initialisation block into the function.
+    append!(featurisefblk.args, initblk.args)
 
     seenfeats = Set()
     featid = uint(0)
-    for ex in feats.args
+    for ex in featsblk.args
         # Ignore embedded line information.
         if ex.head == :line
             continue
@@ -249,48 +271,56 @@ macro featinject(feattype, fstructf, feats)
 
         featid += 1
         # Call to the feature structure function.
-        fstructex = Expr(:call, fstructf, :($featid), ex.args...)
+        # XXX: fstruct should be the fstructf argument.
+        fstructex = Expr(:call, fstruct, :($featid), ex.args...)
         # Assignment into the feature vector.
         #   := won't work, and below is the best hack I can come up with.
-        assignex = Expr(symbol("="), :(fvec[$featid]), fstructex)
-        push!(exret.args, assignex)
+        assignex = Expr(symbol("="), :(feats[$featid]), fstructex)
+        push!(featurisefblk.args, assignex)
     end
 
-    # Fixed-size feature allocation prior to the feature extraction.
-    allocex = Expr(symbol("="), :fvec, :(Array($feattype, $featid)))
-    unshift!(exret.args, allocex)
-    # Return the feature vector.
-    push!(exret.args, :(return fvec))
+    # Return the features.
+    push!(featurisefblk.args, :(return feats))
+    # Inject the function declaration into the returned expression.
+    push!(exret.args, featurisef)
+
+    # Define a constant for the total number of features.
+    push!(exret.args, esc(:(const NUMFEATS = $featid)))
 
     return exret
 end
 
-# TODO: Use a co-routine, slower?
-# Feature set used in "Training Deterministic Parsers with Non-Deterministic
-#   Oracles" by Goldberg et al. (2013) for the Hybrid model.
-# TODO: Can we boost speed by eliminating some struct accesses using locals?
-# TODO: Enable inbounds later on?
 function featurise(c::Config)
-    # Short-hands.
-    stack = c.stack
-    buff = c.buff
+    feats = Array(FeatStruct, NUMFEATS)
+    featurise!(feats, c)
+    feats
+end
 
-    s0 = !isempty(stack) ? stack[end] : NULLVERT
-    s1 = length(stack) > 1 ? stack[end-1] : NULLVERT
-    s2 = length(stack) > 2 ? stack[end-2] : NULLVERT
+@featurise(FeatStruct, feattypef,
+    begin
+        # Short-hands.
+        stack = c.stack
+        buff = c.buff
 
-    b0 = !isempty(buff) ? buff[end] : NULLVERT
-    b1 = length(buff) > 1 ? buff[end-1] : NULLVERT
+        s0 = !isempty(stack) ? stack[end] : NULLVERT
+        s1 = length(stack) > 1 ? stack[end-1] : NULLVERT
+        s2 = length(stack) > 2 ? stack[end-2] : NULLVERT
 
-    s0_lm = lmostdep(s0)
-    s1_lm = lmostdep(s1)
-    b0_lm = lmostdep(b0)
+        b0 = !isempty(buff) ? buff[end] : NULLVERT
+        b1 = length(buff) > 1 ? buff[end-1] : NULLVERT
 
-    s0_rm = rmostdep(s0)
-    s1_rm = rmostdep(s1)
+        s0_lm = lmostdep(s0)
+        s1_lm = lmostdep(s1)
+        b0_lm = lmostdep(b0)
 
-    # Slight macro abuse to inject the feature templates.
-    @featinject FeatStruct fstruct begin
+        s0_rm = rmostdep(s0)
+        s1_rm = rmostdep(s1)
+    end,
+    begin
+        # Feature set used in "Training Deterministic Parsers with
+        #   Non-Deterministic Oracles" by Goldberg et al. (2013) for
+        #   the Hybrid model.
+
         # First order.
         (s0.form, )
         (s0.postag, )
@@ -375,6 +405,5 @@ function featurise(c::Config)
         #(s1.postag, s0.postag,  b0.postag)
         #(s0.postag, b0.postag,  b1.postag)
     end
-end
-
+)
 end
