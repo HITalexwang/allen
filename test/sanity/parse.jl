@@ -73,14 +73,25 @@ open(debugpath, "r") do debug_f
     end
 end
 
-# Can we memorise a few short sentences?
 open(debugpath, "r") do debug_f
     goldsents = collect(Sentence, conllxparse(debug_f, useproj=true))
 
-    scores = Any[]
-    for model in train(goldsents, epochs=7)
-        push!(scores, evaluate(model, goldsents))
+    # Can we memorise a very simple sentence?
+    let
+        sent = goldsents[1:1]
+        scores = Any[]
+        for model in train(sent, epochs=3)
+            push!(scores, evaluate(model, sent))
+        end
+        @test_approx_eq scores[end] 1.0
     end
 
-    @test_approx_eq scores[end] 1.0
+    # Can we memorise a few short sentences?
+    let
+        scores = Any[]
+        for model in train(goldsents, epochs=7)
+            push!(scores, evaluate(model, goldsents))
+        end
+        @test_approx_eq scores[end] 1.0
+    end
 end

@@ -60,6 +60,9 @@ islegal(c::Config, ::Shift) = !isempty(c.buff)
 import Base: isequal
 isequal(::Shift, ::Shift) = true
 
+import Base: hash
+hash(::Shift) = 0x4711
+
 type LeftArc
     deprel::String
 end
@@ -87,6 +90,9 @@ end
 import Base: isequal
 isequal(a::LeftArc, b::LeftArc) = a.deprel == b.deprel
 
+import Base: hash
+hash(a::LeftArc) = hash(a.deprel)
+
 type RightArc
     deprel::String
 end
@@ -111,6 +117,9 @@ islegal(c::Config, ::RightArc) = length(c.stack) > 1
 
 import Base: isequal
 isequal(a::RightArc, b::RightArc) = a.deprel == b.deprel
+
+import Base: hash
+hash(a::RightArc) = hash(a.deprel)
 
 type ShiftUndo
     # Intentionally left blank.
@@ -287,12 +296,6 @@ macro featurise(feattype, feattypef, initblk, featsblk)
     push!(exret.args, esc(:(const NUMFEATS = $featid)))
 
     return exret
-end
-
-function featurise(c::Config)
-    feats = Array(FeatStruct, NUMFEATS)
-    featurise!(feats, c)
-    feats
 end
 
 @featurise(FeatStruct, fstruct,

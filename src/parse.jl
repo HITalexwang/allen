@@ -51,7 +51,7 @@ function isequal(a::Sentence, b::Sentence)
     return true
 end
 
-function predict(conf, model)
+function predict(conf, model, fstructs)
     legaltranss = collect(filter(t -> islegal(conf, t), model.transs))
 
     if length(legaltranss) == 1
@@ -61,9 +61,8 @@ function predict(conf, model)
 
     bestscore = -Inf
     besttrans = nothing
-
     for trans in legaltranss
-        score, _ = evaluate(model.weights, model.featids, trans, conf)
+        score = testeval(model, trans, conf, fstructs)
         if score > bestscore
             bestscore = score
             besttrans = trans
@@ -73,10 +72,10 @@ function predict(conf, model)
     return besttrans
 end
 
-function parse(sent, model)
+function parse(sent, model, fstructs)
     conf = config(sent, model.coder)
     while !isterminal(conf)
-        trans = predict(conf, model)
+        trans = predict(conf, model, fstructs)
         apply!(conf, trans)
     end
 
@@ -86,10 +85,11 @@ end
 # TODO: Implement LAS as well.
 export evaluate
 function evaluate(model, goldsents)
+    fstructs = Array(FeatStruct, NUMFEATS)
     total = 0
     correct = 0
     for goldsent in goldsents
-        predsent = parse(goldsent, model)
+        predsent = parse(goldsent, model, fstructs)
         for (goldtok, predtok) in zip(goldsent, predsent)
             total += 1
             if predtok.head == goldtok.head
@@ -105,86 +105,98 @@ function evaluate(model, goldsents)
     end
 end
 
-function evaluate(weights, featids, trans, conf; train=false)
+function testeval(model, trans, conf, fstructs)
+    # Short-hands.
+    weights = model.weights
+    fidbyfstruct = model.fidbyfstruct
+
     # Apply the transition.
     undo = apply!(conf, trans)
-
     # Featurise the resulting configuration.
-    feats = featurise(conf)
-    featrows = Int[]
-    if train
-        for feat in feats
-            featid = get!(featids, feat, length(featids) + 1)
-            push!(featrows, featid)
-        end
+    fstructs = featurise!(fstructs, conf)
 
-        # Extend the weight vector if we observed new features.
-        numfeats = length(featids)
-        if length(weights) < numfeats
-            oldsize = length(weights)
-            resize!(weights, numfeats)
-            # Initialise the new feature weights.
-            weights[oldsize + 1:end] = 0
-        end
-    else
-        # Ignore previously unobserved features.
-        for feat in feats
-            featid = get(featids, feat, 0)
-            if featid > 0
-                push!(featrows, featid)
-            end
+    score = 0.0
+    for featstruct in fstructs
+        featid = get(fidbyfstruct, featstruct, 0)
+        # Only consider previously observed features.
+        if featid > 0
+            score += weights[featid]
         end
     end
 
     # Revert to the original configuration.
     undo!(conf, undo)
 
-    # Calculate feats' * weights.
-    score = 0.0
-    for featrow in featrows
-        score += weights[featrow]
-    end
-
-    return (score, featrows)
+    return score
 end
 
-function trainpred(weights, featids, transs, conf)
+function traineval(cache, model, trans, conf)
+    # Short-hands.
+    weights = model.weights
+    fidbyfstruct = model.fidbyfstruct
+    fstructs = cache.fstructsbytrans[trans]
+    featids = cache.fidsbytrans[trans]
+
+    # Apply the transition.
+    undo = apply!(conf, trans)
+    # Featurise the resulting configuration.
+    featurise!(fstructs, conf)
+    for (featidx, featstruct) in enumerate(fstructs)
+        featid = get!(fidbyfstruct, featstruct, length(fidbyfstruct) + 1)
+        featids[featidx] = featid
+    end
+
+    # Revert to the original configuration.
+    undo!(conf, undo)
+
+    # Extend the weight vector if we observed new features.
+    numfeats = length(fidbyfstruct)
+    if length(weights) < numfeats
+        oldsize = length(weights)
+        resize!(weights, numfeats)
+        # Initialise the new feature weights.
+        weights[oldsize + 1:end] = 0
+    end
+
+    # Calculate feats' * weights.
+    score = 0.0
+    for featid in featids
+        score += weights[featid]
+    end
+
+    return score
+end
+
+
+function trainpred(train, model, conf)
     goldtrans = oracle(conf)
-    legaltranss = collect(filter(t -> islegal(conf, t), transs))
+    legaltranss = collect(filter(t -> islegal(conf, t), model.transs))
 
     if length(legaltranss) == 1
         besttrans = legaltranss[1]
         # There is only one possibly transition, no need to evaluate.
-        return (goldtrans, nothing, besttrans, nothing)
+        return (goldtrans, besttrans)
     end
 
     # TODO: Can this be made prettier and type stable?
     besttrans = nothing
     bestscore = -Inf
-    bestfeats = nothing
-    goldscore = nothing
-    goldfeats = nothing
-
     for trans in legaltranss
-        score, feats = evaluate(weights, featids, trans, conf, train=true)
+        score = traineval(train.cache, model, trans, conf)
 
         if !isequal(trans, goldtrans)
             # Add the margin.
             # TODO: Extract into an argument.
             score += 1
-        else
-            goldscore = score
-            goldfeats = feats
         end
 
         if score > bestscore
-            besttrans = trans
             bestscore = score
-            bestfeats = feats
+            besttrans = trans
         end
     end
 
-    return (goldtrans, goldfeats, besttrans, bestfeats)
+    return (goldtrans, besttrans)
 end
 
 type Model
@@ -192,17 +204,35 @@ type Model
     #   type(Symbol, Label)?
     transs
     weights::Array{Float64, 1}
-    featids::Dict{FeatStruct, Uint}
+    fidbyfstruct::Dict{FeatStruct, Uint}
     coder::Coder
 end
 
 Model() = Model(transitions(), Float64[], Dict{FeatStruct, Uint}(), Coder())
+
+type Cache
+    fstructsbytrans::Dict{Any,Vector{FeatStruct}}
+    fidsbytrans::Dict{Any,Vector{Uint}}
+end
+
+function cache(model)
+    # Pre-allocate for each transition.
+    fstructsbytrans = Dict{Any,Vector{FeatStruct}}()
+    fidsbytrans = Dict{Any,Vector{Uint}}()
+    for trans in model.transs
+        fstructsbytrans[trans] = Array(FeatStruct, NUMFEATS)
+        fidsbytrans[trans] = Array(Uint, NUMFEATS)
+    end
+
+    return Cache(fstructsbytrans, fidsbytrans)
+end
 
 type Train
     epoch::Uint
     epochs::Uint
     sents::Sentences
     model::Model
+    cache::Cache
     earlyupdates::Bool
 end
 
@@ -211,7 +241,7 @@ function train(sents::Sentences; epochs=0, model=nothing, earlyupdates=false)
         model = Model()
     end
 
-    return Train(0, epochs, sents, model, earlyupdates)
+    return Train(0, epochs, sents, model, cache(model), earlyupdates)
 end
 
 start(::Train) = nothing
@@ -224,18 +254,18 @@ function next(itr::Train, nada)
 
     # Shuffle the sentences before for each pass.
     shuffle!(itr.sents)
-    # TODO: Minibatches.
     for sent in itr.sents
         # Parse the sentence.
         conf = config(sent, model.coder)
         while !isterminal(conf)
-            goldtrans, goldfeats, besttrans, bestfeats = trainpred(
-                model.weights, model.featids, model.transs, conf)
+            goldtrans, besttrans = trainpred(itr, model, conf)
 
             if !isequal(besttrans, goldtrans)
+                goldfids = itr.cache.fidsbytrans[goldtrans]
+                bestfids = itr.cache.fidsbytrans[besttrans]
                 # Update the weight vector (perceptron update).
-                model.weights[goldfeats] .+= 1
-                model.weights[bestfeats] .-= 1
+                model.weights[goldfids] .+= 1
+                model.weights[bestfids] .-= 1
 
                 if itr.earlyupdates
                     # Skip to the next sentence.
@@ -244,7 +274,6 @@ function next(itr::Train, nada)
             end
 
             # Proceed along the gold path.
-            # TODO: Could use a dynamic oracle for exploration.
             apply!(conf, goldtrans)
         end
     end
