@@ -1,0 +1,23 @@
+# vim:set ft=yaml ts=4 sw=4 sts=4 autoindent:
+
+# Configuration file for Travis CI continuous integration.
+#
+# Author:   Pontus Stenetorp    <pontus stenetorp se>
+# Version:  2014-05-27
+
+# Lies! But, apparently this is standard for Julia.
+language: c
+compiler:
+    - clang
+
+notifications:
+    email: false
+
+before_install:
+    - sudo add-apt-repository ppa:staticfloat/julia-deps -y
+    - sudo add-apt-repository ppa:staticfloat/julianightlies -y
+    - sudo apt-get update -q -q -y
+    - sudo apt-get install libpcre3-dev julia -y
+script:
+    - make sanity
+# TODO: Coverage? Reference:  https://github.com/JuliaStats/DataFrames.jl
