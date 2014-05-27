@@ -108,6 +108,7 @@ end
 function testeval(model, trans, conf, fstructs)
     # Short-hands.
     weights = model.weights
+    bias = model.bias
     fidbyfstruct = model.fidbyfstruct
 
     # Apply the transition.
@@ -115,7 +116,7 @@ function testeval(model, trans, conf, fstructs)
     # Featurise the resulting configuration.
     fstructs = featurise!(fstructs, conf)
 
-    score = 0.0
+    score = bias
     for featstruct in fstructs
         featid = get(fidbyfstruct, featstruct, 0)
         # Only consider previously observed features.
@@ -133,6 +134,7 @@ end
 function traineval(cache, model, trans, conf)
     # Short-hands.
     weights = model.weights
+    bias = model.bias
     fidbyfstruct = model.fidbyfstruct
     fstructs = cache.fstructsbytrans[trans]
     featids = cache.fidsbytrans[trans]
@@ -152,21 +154,17 @@ function traineval(cache, model, trans, conf)
     # Extend the weight vector if we observed new features.
     numfeats = length(fidbyfstruct)
     if length(weights) < numfeats
-        oldsize = length(weights)
-        resize!(weights, numfeats)
-        # Initialise the new feature weights.
-        weights[oldsize + 1:end] = 0
+        extend!(model, numfeats)
     end
 
-    # Calculate feats' * weights.
-    score = 0.0
+    # Calculate feats' * weights + bias.
+    score = bias
     for featid in featids
         score += weights[featid]
     end
 
     return score
 end
-
 
 function trainpred(train, model, conf)
     goldtrans = oracle(conf)
@@ -204,11 +202,58 @@ type Model
     #   type(Symbol, Label)?
     transs
     weights::Vector{Float64}
+    bias::Float64
     fidbyfstruct::Dict{FeatStruct, Uint}
     coder::Coder
 end
 
-Model() = Model(transitions(), Float64[], Dict{FeatStruct, Uint}(), Coder())
+# Convert an averaged perceptron model in training to a vanilla perceptron.
+function Model(m)
+    fact = 1 / m.samplecount
+    weights = m.weights - fact .* m.weightssum
+    bias = m.bias - fact * m.biassum
+    Model(m.transs, weights, bias, m.fidbyfstruct, m.coder)
+end
+
+# Averaged perceptron.
+type TrainModel
+    transs
+    weights::Vector{Float64}
+    bias::Float64
+    fidbyfstruct::Dict{FeatStruct, Uint}
+    coder::Coder
+    weightssum::Vector{Float64}
+    biassum::Float64
+    samplecount::Uint
+    lastupdate::Uint
+end
+
+function TrainModel()
+    TrainModel(transitions(), Float64[], 0, Dict{FeatStruct, Uint}(),
+        Coder(), Float64[], 0, 0, 0)
+end
+
+function extend!(m, size)
+    oldsize = length(m.weights)
+    resize!(m.weights, size)
+    resize!(m.weightssum, size)
+    # Initialise the new weights.
+    m.weights[oldsize+1:end] = 0
+    m.weightssum[oldsize+1:end] = 0
+    return m
+end
+
+function update!(m, posfids, negfids)
+    m.weights[posfids] .+= 1
+    m.weights[negfids] .-= 1
+    # Samples observed since the last update.
+    dur = m.samplecount - m.lastupdate
+    m.weightssum[posfids] .+= dur
+    m.weightssum[negfids] .-= dur
+    # TODO: What about the biases?
+    m.lastupdate = m.samplecount
+    return m
+end
 
 type Cache
     fstructsbytrans::Dict{Any,Vector{FeatStruct}}
@@ -231,17 +276,14 @@ type Train
     epoch::Uint
     epochs::Uint
     sents::Sentences
-    model::Model
+    trainmodel::TrainModel
     cache::Cache
     earlyupdates::Bool
 end
 
-function train(sents::Sentences; epochs=0, model=nothing, earlyupdates=false)
-    if model == nothing
-        model = Model()
-    end
-
-    return Train(0, epochs, sents, model, cache(model), earlyupdates)
+function train(sents; epochs=0, earlyupdates=false)
+    tmodel = TrainModel()
+    Train(0, epochs, sents, tmodel, cache(tmodel), earlyupdates)
 end
 
 start(::Train) = nothing
@@ -249,23 +291,24 @@ start(::Train) = nothing
 function next(itr::Train, nada)
     itr.epoch += 1
 
-    # Short-hand.
-    model = itr.model
+    # Short-hands.
+    tmodel = itr.trainmodel
+    cache = itr.cache
 
     # Shuffle the sentences before for each pass.
     shuffle!(itr.sents)
     for sent in itr.sents
         # Parse the sentence.
-        conf = config(sent, model.coder)
+        conf = config(sent, tmodel.coder)
         while !isterminal(conf)
-            goldtrans, besttrans = trainpred(itr, model, conf)
+            goldtrans, besttrans = trainpred(itr, tmodel, conf)
+            tmodel.samplecount += 1
 
             if !isequal(besttrans, goldtrans)
                 goldfids = itr.cache.fidsbytrans[goldtrans]
                 bestfids = itr.cache.fidsbytrans[besttrans]
                 # Update the weight vector (perceptron update).
-                model.weights[goldfids] .+= 1
-                model.weights[bestfids] .-= 1
+                update!(tmodel, goldfids, bestfids)
 
                 if itr.earlyupdates
                     # Skip to the next sentence.
@@ -278,7 +321,7 @@ function next(itr::Train, nada)
         end
     end
 
-    return (model, nothing)
+    return (Model(tmodel), nothing)
 end
 
 # Helper function to more naturally progress the iterator by masking the
