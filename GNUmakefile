@@ -24,6 +24,10 @@ ${WRK}/maltparser: ${WRK}
 sanity:
 	julia test/sanity/sanity.jl
 
+.PHONY: coverage
+coverage:
+	julia --code-coverage test/sanity/sanity.jl
+
 # TODO: Depend on sanity?
 .PHONY: perf
 perf:
@@ -39,3 +43,4 @@ profile: ${WRK}/profile.txt
 .PHONY: clean
 clean:
 	rm -r -f "${WRK}"
+	find src -name '*.cov' | xargs -r rm
