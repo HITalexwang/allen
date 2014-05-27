@@ -60,13 +60,13 @@ function blind!(t::Token)
     t.deprel, t.pdeprel = (NOVAL, NOVAL)
 end
 
-typealias Sentence Array{Token, 1}
+typealias Sentence Vector{Token}
 
 function show(io::IO, s::Sentence)
     print(io, join([string(t) for t in s], '\n'))
 end
 
-typealias Sentences Array{Sentence, 1}
+typealias Sentences Vector{Sentence}
 
 function show(io::IO, ss::Sentences)
     print(io, join([string(s) for s in ss], "\n\n"))

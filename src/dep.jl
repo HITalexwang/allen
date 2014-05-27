@@ -33,8 +33,8 @@ type Vertex
     head::Uint
     deprel::String
     # TODO: Should be an ordered set.
-    ldependents::Array{Vertex, 1}
-    rdependents::Array{Vertex, 1}
+    ldependents::Vector{Vertex}
+    rdependents::Vector{Vertex}
     function Vertex(id, form, postag)
         v = new()
         v.id = id
@@ -99,7 +99,7 @@ const NULLVERT = Vertex(NULLID, NULLFORM, NULLPOS)
 ROOTTOK = Token(ROOTID, "<ROOT>", NOVAL, NOVAL, NOVAL, NOVAL, NOHEAD, NOVAL,
     NOHEAD, NOVAL)
 
-typealias Graph Array{Vertex, 1}
+typealias Graph Vector{Vertex}
 
 import Base: isequal
 function isequal(a::Graph, b::Graph)

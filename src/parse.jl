@@ -203,7 +203,7 @@ type Model
     # XXX: I dislike this... how can we fix it?
     #   type(Symbol, Label)?
     transs
-    weights::Array{Float64, 1}
+    weights::Vector{Float64}
     fidbyfstruct::Dict{FeatStruct, Uint}
     coder::Coder
 end

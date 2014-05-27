@@ -19,8 +19,8 @@ using DepGraph
 using CoNLLX
 
 type Config
-    stack::Array{Vertex, 1}
-    buff::Array{Vertex, 1}
+    stack::Vector{Vertex}
+    buff::Vector{Vertex}
     graph::Graph
 end
 
@@ -245,13 +245,13 @@ end
 # Generates a constant and a function:
 #
 #   * NUMFEATS
-#   * featurise!(feats::Array{feattype,1}, c::Config)
+#   * featurise!(feats::Vector{feattype}, c::Config)
 #
 macro featurise(feattype, feattypef, initblk, featsblk)
     exret = Expr(:block)
 
     featurisef = esc(quote
-        function featurise!(feats::Array{$feattype,1}, c::Config)
+        function featurise!(feats::Vector{$feattype}, c::Config)
             # initblk
             # feature extraction code generated from featblk
         end
