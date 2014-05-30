@@ -11,7 +11,7 @@
 
 module Percep
 
-export classify, spclassify, spupdate!, update!
+export extend!, classify, spclassify, score, spscore, spupdate!, update!
 export Perceptron, AvgPerceptron
 export MulticlassPerceptron, MulticlassAvgPerceptron
 
@@ -41,6 +41,8 @@ _spclassify(fidxs, fvals, p) = _spscore(fidxs, fvals, p) > 0
 
 spscore(fidxs, p) = _spscore(fidxs, p)
 spscore(fidxs, fvals, p) = _spscore(fidxs, fvals, p)
+
+score(fvec, p) = spscore(1:length(fvec), fvec, p)
 
 spclassify(fidxs, p) = _spclassify(fidxs, p)
 spclassify(fidxs, fvals, p) = _spclassify(fidxs, fvals, p)
@@ -112,10 +114,22 @@ function Perceptron(p)
     bfact = p.samplecount - p.blastupdate
     b += bfact * p.bias
 
-    w ./= p.samplecount
-    b /= p.samplecount
+    if p.samplecount > 0
+        w ./= p.samplecount
+        b /= p.samplecount
+    end
 
     Perceptron(w, b)
+end
+
+function spscore(fidxs, p::AvgPerceptron)
+    p.samplecount += 1
+    return _spscore(fidxs, p)
+end
+
+function spscore(fidxs, fvals, p::AvgPerceptron)
+    p.samplecount += 1
+    return _spscore(fidxs, fvals, p)
 end
 
 function spclassify(fidxs, p::AvgPerceptron)

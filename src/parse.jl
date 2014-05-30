@@ -5,6 +5,9 @@
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-07
 
+# TODO: Each perceptron could have its own fidx dictionary, sparser?
+# TODO: If so, then they would also need to be independently extended in size.
+
 module Parse
 
 export done, isequal, next, parse, start, train
@@ -14,10 +17,12 @@ import Base: done, isequal, start, next
 require("conllx.jl")
 require("dep.jl")
 require("hybrid.jl")
+require("percep.jl")
 
 using CoNLLX
 using DepGraph
 using Hybrid
+using Percep
 
 function parse(sent::Sentence, predict::Function, coder)
     conf = config(sent, coder)
@@ -107,8 +112,8 @@ end
 
 function testeval(model, trans, conf, fstructs)
     # Short-hands.
-    weights = model.weights
-    bias = model.bias
+    weights = model.percepbytrans[trans].weights
+    bias = model.percepbytrans[trans].bias
     fidbyfstruct = model.fidbyfstruct
 
     # Apply the transition.
@@ -133,8 +138,7 @@ end
 
 function traineval(cache, model, trans, conf)
     # Short-hands.
-    weights = model.weights
-    bias = model.bias
+    percep = model.percepbytrans[trans]
     fidbyfstruct = model.fidbyfstruct
     fstructs = cache.fstructsbytrans[trans]
     featids = cache.fidsbytrans[trans]
@@ -153,17 +157,12 @@ function traineval(cache, model, trans, conf)
 
     # Extend the weight vector if we observed new features.
     numfeats = length(fidbyfstruct)
-    if length(weights) < numfeats
-        extend!(model, numfeats)
+    if length(percep.weights) < numfeats
+        grow!(model, numfeats)
     end
 
     # Calculate feats' * weights + bias.
-    score = bias
-    for featid in featids
-        score += weights[featid]
-    end
-
-    return score
+    spscore(featids, percep)
 end
 
 function trainpred(train, model, conf)
@@ -197,62 +196,51 @@ function trainpred(train, model, conf)
     return (goldtrans, besttrans)
 end
 
-type Model
+type TrainModel
     # XXX: I dislike this... how can we fix it?
     #   type(Symbol, Label)?
     transs
-    weights::Vector{Float64}
-    bias::Float64
+    percepbytrans::Dict{Any,AvgPerceptron}
     fidbyfstruct::Dict{FeatStruct, Uint}
     coder::Coder
-end
-
-# Convert an averaged perceptron model in training to a vanilla perceptron.
-function Model(m)
-    fact = 1 / m.samplecount
-    weights = m.weights - fact .* m.weightssum
-    bias = m.bias - fact * m.biassum
-    Model(m.transs, weights, bias, m.fidbyfstruct, m.coder)
-end
-
-# Averaged perceptron.
-type TrainModel
-    transs
-    weights::Vector{Float64}
-    bias::Float64
-    fidbyfstruct::Dict{FeatStruct, Uint}
-    coder::Coder
-    weightssum::Vector{Float64}
-    biassum::Float64
-    samplecount::Uint
-    lastupdate::Uint
 end
 
 function TrainModel()
-    TrainModel(transitions(), Float64[], 0, Dict{FeatStruct, Uint}(),
-        Coder(), Float64[], 0, 0, 0)
+    transs = transitions()
+    dic = Dict{Any,AvgPerceptron}()
+    for trans in transs
+        dic[trans] = AvgPerceptron()
+    end
+    TrainModel(transs, dic, Dict{FeatStruct, Uint}(), Coder())
 end
 
-function extend!(m, size)
-    oldsize = length(m.weights)
-    resize!(m.weights, size)
-    resize!(m.weightssum, size)
-    # Initialise the new weights.
-    m.weights[oldsize+1:end] = 0
-    m.weightssum[oldsize+1:end] = 0
-    return m
+function grow!(model::TrainModel, size)
+    for (_, p) in model.percepbytrans
+        extend!(p, size)
+    end
+    model
 end
 
-function update!(m, posfids, negfids)
-    m.weights[posfids] .+= 1
-    m.weights[negfids] .-= 1
-    # Samples observed since the last update.
-    dur = m.samplecount - m.lastupdate
-    m.weightssum[posfids] .+= dur
-    m.weightssum[negfids] .-= dur
-    # TODO: What about the biases?
-    m.lastupdate = m.samplecount
-    return m
+function update!(m, goldtrans, goldfids, besttrans, bestfids)
+    spupdate!(m.percepbytrans[goldtrans], goldfids, true)
+    spupdate!(m.percepbytrans[besttrans], bestfids, false)
+end
+
+type Model
+    transs
+    percepbytrans::Dict{Any,Perceptron}
+    fidbyfstruct::Dict{FeatStruct, Uint}
+    coder::Coder
+end
+
+# Finalise a model in training to construct the resulting model.
+function Model(m)
+    dic = Dict{Any,Perceptron}()
+    for (trans, p) in m.percepbytrans
+        dic[trans] = Perceptron(p)
+    end
+    # TODO: Should be a deep copy of transs, coder and fidbyfstruct?
+    Model(m.transs, dic, m.fidbyfstruct, m.coder)
 end
 
 type Cache
@@ -302,13 +290,12 @@ function next(itr::Train, nada)
         conf = config(sent, tmodel.coder)
         while !isterminal(conf)
             goldtrans, besttrans = trainpred(itr, tmodel, conf)
-            tmodel.samplecount += 1
 
             if !isequal(besttrans, goldtrans)
                 goldfids = itr.cache.fidsbytrans[goldtrans]
                 bestfids = itr.cache.fidsbytrans[besttrans]
-                # Update the weight vector (perceptron update).
-                update!(tmodel, goldfids, bestfids)
+                # Update the weight vectors.
+                update!(tmodel, goldtrans, goldfids, besttrans, bestfids)
 
                 if itr.earlyupdates
                     # Skip to the next sentence.
