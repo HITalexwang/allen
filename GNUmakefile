@@ -43,4 +43,4 @@ profile: ${WRK}/profile.txt
 .PHONY: clean
 clean:
 	rm -r -f "${WRK}"
-	find src -name '*.cov' | xargs -r rm
+	find src test -name '*.cov' | xargs -r rm
