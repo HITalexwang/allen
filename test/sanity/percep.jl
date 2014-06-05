@@ -66,6 +66,7 @@ open(datapath, "r") do data_f
 
         wsum = zeros(size(percep.weights))
         bsum = 0
+        count = 0
 
         errors = true
         while errors
@@ -76,6 +77,7 @@ open(datapath, "r") do data_f
                 islemon = classify(sample.fvec, percep)
                 wsum += percep.weights
                 bsum += percep.bias
+                count += 1
 
                 if isequal(sample.label, LEMON) && !islemon
                     update!(percep, sample.fvec, true)
@@ -87,11 +89,12 @@ open(datapath, "r") do data_f
             end
         end
 
+        @test count == percep.count
         vanilla = Perceptron(percep)
         # Compare with the averages, epsilon to account for rounding errors.
-        wavg = wsum / percep.samplecount
+        wavg = wsum / count
         @test_approx_eq wavg vanilla.weights
-        bavg = bsum / percep.samplecount
+        bavg = bsum / count
         @test_approx_eq bavg vanilla.bias
         for sample in data
             classify(sample.fvec, vanilla)

@@ -13,7 +13,6 @@ module Percep
 
 export extend!, classify, spclassify, score, spscore, spupdate!, update!
 export Perceptron, AvgPerceptron
-export MulticlassPerceptron, MulticlassAvgPerceptron
 
 type Perceptron
     weights::Vector{Float64}
@@ -49,50 +48,23 @@ spclassify(fidxs, fvals, p) = _spclassify(fidxs, fvals, p)
 
 classify(fvec, p) = spclassify(1:length(fvec), fvec, p)
 
-function _spupdate!(p, fidxs, value)
-    for fidx in fidxs
-        p.weights[fidx] += value
-    end
-    p.bias += value
-end
-
-function _spupdate!(p, fidxs, fvals, value)
-    for (fidx, fval) in zip(fidxs, fvals)
-        p.weights[fidx] += value * fval
-    end
-    p.bias += value
-end
-
-spupdate!(p, fidxs, value) = _spupdate!(p, fidxs, value)
-spupdate!(p, fidxs, value::Bool) = spupdate!(p, fidxs, value ? 1 : -1)
-spupdate!(p, fidxs, fvals, value) = _spupdate!(p, fidxs, fvals, value)
-function spupdate!(p, fidxs, fvals, value::Bool)
-    spupdate!(p, fidxs, fvals, value ? 1 : -1)
-end
-
-update!(p, fvec, value) = spupdate!(p, 1:length(fvec), fvec, value)
-
 type AvgPerceptron
     weights::Vector{Float64}
     bias::Float64
-    weightssum::Vector{Float64}
-    biassum::Float64
-    samplecount::Uint
-    wlastupdate::Vector{Uint}
-    blastupdate::Uint
+    weightsacc::Vector{Float64}
+    biasacc::Float64
+    count::Int
 end
 
-AvgPerceptron() = AvgPerceptron(Float64[], 0, Float64[], 0, 0, Uint[], 0)
+AvgPerceptron() = AvgPerceptron(Float64[], 0, Float64[], 0, 0)
 
 function extend!(p, size)
     oldsize = length(p.weights)
     resize!(p.weights, size)
-    resize!(p.weightssum, size)
-    resize!(p.wlastupdate, size)
+    resize!(p.weightsacc, size)
     # Initialise the new weights.
     p.weights[oldsize+1:end] = 0
-    p.weightssum[oldsize+1:end] = 0
-    p.wlastupdate[oldsize+1:end] = p.samplecount
+    p.weightsacc[oldsize+1:end] = 0
     return p
 end
 
@@ -103,86 +75,53 @@ end
 
 # Convert an averaged perceptron to a its final vanilla perceptron stage.
 function Perceptron(p)
-    w = copy(p.weightssum)
-    b = p.biassum
-
-    # Add the factors since the last update.
-    for fidx in 1:length(w)
-        wfact = p.samplecount - p.wlastupdate[fidx]
-        w[fidx] += wfact * p.weights[fidx]
-    end
-    bfact = p.samplecount - p.blastupdate
-    b += bfact * p.bias
-
-    if p.samplecount > 0
-        w ./= p.samplecount
-        b /= p.samplecount
-    end
-
-    Perceptron(w, b)
+    div = p.count
+    Perceptron(p.weights - p.weightsacc / div, p.bias - p.biasacc / div)
 end
 
 function spscore(fidxs, p::AvgPerceptron)
-    p.samplecount += 1
+    p.count += 1
     return _spscore(fidxs, p)
 end
 
 function spscore(fidxs, fvals, p::AvgPerceptron)
-    p.samplecount += 1
+    p.count += 1
     return _spscore(fidxs, fvals, p)
 end
 
 function spclassify(fidxs, p::AvgPerceptron)
-    p.samplecount += 1
+    p.count += 1
     return _spclassify(fidxs, p)
 end
 
 function spclassify(fidxs, fvals, p::AvgPerceptron)
-    p.samplecount += 1
+    p.count += 1
     return _spclassify(fidxs, fvals, p)
 end
 
-function spupdate!(p::AvgPerceptron, fidxs, value::Bool)
-    spupdate!(p, fidxs, value ? 1 : -1)
-end
-
-function sumsupdate!(p, fidxs)
+function spupdate!(p, fidxs, value)
     for fidx in fidxs
-        wfact = p.samplecount - p.wlastupdate[fidx]
-        p.wlastupdate[fidx] = p.samplecount
-        # TODO: Potential overflow? But I am not alone in doing this...
-        p.weightssum[fidx] += wfact * p.weights[fidx]
+        p.weights[fidx] += value
+        p.weightsacc[fidx] += p.count * value
     end
-
-    bfact = p.samplecount - p.blastupdate
-    p.blastupdate = p.samplecount
-    p.biassum += bfact * p.bias
+    p.bias += value
+    p.biasacc += p.count * value
 end
 
-function spupdate!(p::AvgPerceptron, fidxs, value)
-    sumsupdate!(p, fidxs)
-    _spupdate!(p, fidxs, value)
+function spupdate!(p, fidxs, fvals, value)
+    for (fidx, fval) in zip(fidxs, fvals)
+        p.weights[fidx] += value * fval
+        p.weightsacc[fidx] += p.count * value * fval
+    end
+    p.bias += value
+    p.biasacc += p.count * value
 end
 
-function spupdate!(p::AvgPerceptron, fidxs, fvals, value)
-    sumsupdate!(p, fidxs)
-    _spupdate!(p, fidxs, fvals, value)
-end
-
-function update!(p::AvgPerceptron, fvec, value)
-    spupdate!(p, 1:length(fvec), fvec, value)
-end
-
-function spupdate!(p::AvgPerceptron, fidxs, value::Bool)
-    spupdate!(p, fidxs, value ? 1 : -1)
-end
-
-function spupdate!(p::AvgPerceptron, fidxs, fvals, value::Bool)
+spupdate!(p, fidxs, value::Bool) = spupdate!(p, fidxs, value ? 1 : -1)
+function spupdate!(p, fidxs, fvals, value::Bool)
     spupdate!(p, fidxs, fvals, value ? 1 : -1)
 end
 
-function update!(p::AvgPerceptron, fvec, value::Bool)
-    update!(p::AvgPerceptron, fvec, value ? 1 : -1)
-end
+update!(p, fvec, value) = spupdate!(p, 1:length(fvec), fvec, value)
 
 end
