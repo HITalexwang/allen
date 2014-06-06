@@ -12,8 +12,6 @@ module Parse
 
 export done, isequal, next, parse, start, train
 
-import Base: done, isequal, start, next
-
 require("structs.jl")
 require("conllx.jl")
 require("dep.jl")
@@ -38,6 +36,7 @@ end
 
 # TODO: Is it a good idea to override these?
 # TODO: This is really a parsing specifing `isequal` implementation.
+import Base: isequal
 function isequal(a::Token, b::Token)
     return (a.id == b.id && a.form == b.form && a.head == b.head
         && a.deprel == b.deprel)
@@ -269,8 +268,10 @@ function train(sents; epochs=0, earlyupdates=false)
     Train(0, epochs, sents, tmodel, cache(tmodel), earlyupdates)
 end
 
+import Base: start
 start(::Train) = nothing
 
+import Base: next
 function next(itr::Train, nada)
     itr.epoch += 1
 
@@ -310,6 +311,7 @@ end
 #   internals of the iterator protocol.
 next(itr::Train) = next(itr, nothing)[1]
 
+import Base: done
 done(itr::Train, nada) = itr.epochs != 0 && itr.epoch >= itr.epochs
 
 end
