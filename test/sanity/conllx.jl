@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 # vim:set ft=julia ts=4 sw=4 sts=4 autoindent:
 
 # Sanity checking for the CoNLL-X format parsing module.
@@ -5,10 +6,9 @@
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-07
 
-require("conllx.jl")
+include("../hdr.jl")
 
-import Base.source_path
-using Base.Test
+require("conllx.jl")
 
 using CoNLLX
 

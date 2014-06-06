@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 # vim:set ft=julia ts=4 sw=4 sts=4 autoindent:
 
 # Sanity checking for the dependency graph module.
@@ -5,20 +6,13 @@
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-07
 
-# TODO: A bit too much duplication from CoNLL-X...
-# TODO: Currently only execution, no tests.
+include("../hdr.jl")
 
 require("conllx.jl")
 require("dep.jl")
 
-import Base.source_path
-using Base.Test
-
 using CoNLLX
 using DepGraph
-
-respath = string(dirname(source_path()), "/../../res/")
-debugpath = string(respath, "debug.conllx")
 
 # Coding/Decoding.
 let

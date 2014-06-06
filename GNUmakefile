@@ -7,6 +7,7 @@ WRK=wrk
 MALT_VER=1.8
 MALT_URL=http://maltparser.org/dist/maltparser-${MALT_VER}.tar.gz
 FETCH_CMD=wget
+JULIA_CMD=julia
 
 SRC=${shell find src test -name '*.jl'}
 
@@ -22,20 +23,24 @@ ${WRK}/maltparser: ${WRK}
 .DEFAULT_GOAL:=sanity
 .PHONY: sanity
 sanity:
-	julia test/sanity/sanity.jl
+	for f in `ls test/sanity/*.jl`; \
+	do \
+		${JULIA_CMD} $${f}; \
+	done;
 
 .PHONY: coverage
-coverage:
-	julia --code-coverage test/sanity/sanity.jl
+coverage: JULIA_CMD+=--code-coverage
+coverage: sanity
 
-# TODO: Depend on sanity?
 .PHONY: perf
-perf:
-	julia test/perf/perf.jl
+perf: sanity
+	for f in `ls test/perf/*.jl`; \
+	do \
+		${JULIA_CMD} $${f}; \
+	done;
 
-# TODO: Depend on sanity?
-${WRK}/profile.txt: ${WRK} ${SRC}
-	julia test/profile.jl
+${WRK}/profile.txt: ${WRK} ${SRC} sanity
+	${JULIA_CMD} test/profile.jl
 
 .PHONY: profile
 profile: ${WRK}/profile.txt

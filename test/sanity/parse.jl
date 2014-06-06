@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 # vim:set ft=julia ts=4 sw=4 sts=4 autoindent:
 
 # Sanity checking for the parsing modules.
@@ -5,25 +6,20 @@
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-07
 
+include("../hdr.jl")
+
 require("conllx.jl")
 require("dep.jl")
 require("hybrid.jl")
 require("parse.jl")
-
-import Base.source_path
-using Base.Test
 
 using CoNLLX
 using DepGraph
 using Hybrid
 using Parse
 
-respath = string(dirname(source_path()), "/../../res")
-debugpath = string(respath, "/debug.conllx")
-datapath = string(respath, "/talbanken/train.conllx")
-
 # Parse using an oracle and ensure that we get the gold annotations back.
-open(datapath, "r") do data_f
+open(talpath, "r") do data_f
     coder = Coder()
     sentnum = 0
     for goldsent in conllxparse(data_f, useproj=true)
@@ -40,7 +36,7 @@ open(datapath, "r") do data_f
 end
 
 # Parse using a random oracle and ensure that we do not crash.
-open(datapath, "r") do data_f
+open(talpath, "r") do data_f
     coder = Coder()
     for goldsent in conllxparse(data_f, useproj=true)
         parse(goldsent, randoracle, coder)
@@ -80,7 +76,7 @@ open(debugpath, "r") do debug_f
     let
         sent = goldsents[1:1]
         scores = Any[]
-        for model in train(sent, epochs=3)
+        for model in train(sent, epochs=7)
             push!(scores, evaluate(model, sent))
         end
         @test_approx_eq scores[end] 1.0
@@ -89,7 +85,7 @@ open(debugpath, "r") do debug_f
     # Can we memorise a few short sentences?
     let
         scores = Any[]
-        for model in train(goldsents, epochs=7)
+        for model in train(goldsents, epochs=42)
             push!(scores, evaluate(model, goldsents))
         end
         @test_approx_eq scores[end] 1.0

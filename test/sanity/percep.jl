@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 # vim:set ft=julia ts=4 sw=4 sts=4 autoindent:
 
 # Sanity checking for the perceptron module.
@@ -5,15 +6,13 @@
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-27
 
-require("percep.jl")
+include("../hdr.jl")
 
-import Base.source_path
-using Base.Test
+require("percep.jl")
 
 using Percep
 
-respath = string(dirname(source_path()), "/../../res")
-datapath = string(respath, "/ola/fruit_data.tsv")
+olapath = "$respath/ola/fruit_data.tsv"
 
 # Labels.
 const APPLE     = "apple"
@@ -55,7 +54,7 @@ function readdata(data_f)
     return samples
 end
 
-open(datapath, "r") do data_f
+open(olapath, "r") do data_f
     samples = readdata(data_f)
 
     # Binary classification.
