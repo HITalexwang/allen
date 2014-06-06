@@ -10,7 +10,7 @@
 
 module Parse
 
-export done, isequal, next, parse, start, train
+export done, isequal, length, next, parse, start, train
 
 require("structs.jl")
 require("conllx.jl")
@@ -238,6 +238,15 @@ function Model(m)
     # TODO: Should be a deep copy of transs, fidbyfstruct and coder?
     #   This slows down the training though...
     Model(m.transs, dic, Identities(m.fidbyfstruct), m.coder)
+end
+
+import Base: length
+function length(model::Union(TrainModel,Model))
+    for (_, p) in model.percepbytrans
+        # We intentionally short-circuit since all perceptrons have the same
+        #   number of weights.
+        return length(p.weights)
+    end
 end
 
 type Cache
