@@ -15,8 +15,13 @@ module Hybrid
 export FeatStruct, apply!, config, featurise, islegal, isterminal, oracle
 export randoracle, transitions, undo!, NUMFEATS, featurise!
 
-using DepGraph
+require("structs.jl")
+require("conllx.jl")
+require("dep.jl")
+
+using Structs
 using CoNLLX
+using DepGraph
 
 type Config
     stack::Vector{Vertex}
@@ -251,7 +256,7 @@ macro featurise(feattype, feattypef, initblk, featsblk)
     exret = Expr(:block)
 
     featurisef = esc(quote
-        function featurise!(feats::Vector{$feattype}, c::Config)
+        function featurise!(featids, fidbyfstruct, c::Config)
             # initblk
             # feature extraction code generated from featblk
         end
@@ -263,7 +268,7 @@ macro featurise(feattype, feattypef, initblk, featsblk)
     append!(featurisefblk.args, initblk.args)
 
     seenfeats = Set()
-    featid = uint(0)
+    featpos = uint(0)
     for ex in featsblk.args
         # Ignore embedded line information.
         if ex.head == :line
@@ -278,22 +283,23 @@ macro featurise(feattype, feattypef, initblk, featsblk)
         @assert !in(ex, seenfeats) "feature template duplicate: $ex"
         push!(seenfeats, ex)
 
-        featid += 1
+        featpos += 1
         # Call to the feature structure function.
-        fstructex = Expr(:call, feattypef, :($featid), ex.args...)
-        # Assignment into the feature vector.
-        #   := won't work, and below is the best hack I can come up with.
-        assignex = Expr(symbol("="), :(feats[$featid]), fstructex)
+        fstructex = Expr(:call, feattypef, :($featpos), ex.args...)
+        # Call to convert the feature structure into an id.
+        idex = Expr(:call, id, :fidbyfstruct, fstructex)
+        # Assign the id to its position in the output vector.
+        assignex = Expr(:(=), :(featids[$featpos]), idex)
         push!(featurisefblk.args, assignex)
     end
 
     # Return the features.
-    push!(featurisefblk.args, :(return feats))
+    push!(featurisefblk.args, :(return featids))
     # Inject the function declaration into the returned expression.
     push!(exret.args, featurisef)
 
     # Define a constant for the total number of features.
-    push!(exret.args, esc(:(const NUMFEATS = $featid)))
+    push!(exret.args, esc(:(const NUMFEATS = $featpos)))
 
     return exret
 end

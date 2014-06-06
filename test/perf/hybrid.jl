@@ -8,10 +8,12 @@
 
 include("../hdr.jl")
 
+require("structs.jl")
 require("conllx.jl")
 require("dep.jl")
 require("hybrid.jl")
 
+using Structs
 using CoNLLX
 using DepGraph
 using Hybrid
@@ -21,14 +23,15 @@ open(talpath, "r") do data_f
     sents = collect(Sentence, conllxparse(data_f, useproj=true))
     coder = Coder()
 
-    feats = Array(FeatStruct, NUMFEATS)
+    fidbyfstruct = Identifier(FeatStruct, Uint)
+    featids = Array(Uint, NUMFEATS)
     numcalls = 0
     duration = 0
     for sent in sents
         conf = config(sent, coder)
         while !isterminal(conf)
             before = time()
-            featurise!(feats, conf)
+            featurise!(featids, fidbyfstruct, conf)
             duration += time() - before
             numcalls += 1
 

@@ -14,11 +14,13 @@ export done, isequal, next, parse, start, train
 
 import Base: done, isequal, start, next
 
+require("structs.jl")
 require("conllx.jl")
 require("dep.jl")
 require("hybrid.jl")
 require("percep.jl")
 
+using Structs
 using CoNLLX
 using DepGraph
 using Hybrid
@@ -56,7 +58,7 @@ function isequal(a::Sentence, b::Sentence)
     return true
 end
 
-function predict(conf, model, fstructs)
+function predict(conf, model, featids)
     legaltranss = collect(filter(t -> islegal(conf, t), model.transs))
 
     if length(legaltranss) == 1
@@ -67,7 +69,7 @@ function predict(conf, model, fstructs)
     bestscore = -Inf
     besttrans = nothing
     for trans in legaltranss
-        score = testeval(model, trans, conf, fstructs)
+        score = testeval(model, trans, conf, featids)
         if score > bestscore
             bestscore = score
             besttrans = trans
@@ -77,10 +79,10 @@ function predict(conf, model, fstructs)
     return besttrans
 end
 
-function parse(sent, model, fstructs)
+function parse(sent, model, featids)
     conf = config(sent, model.coder)
     while !isterminal(conf)
-        trans = predict(conf, model, fstructs)
+        trans = predict(conf, model, featids)
         apply!(conf, trans)
     end
 
@@ -90,11 +92,12 @@ end
 # TODO: Implement LAS as well.
 export evaluate
 function evaluate(model, goldsents)
-    fstructs = Array(FeatStruct, NUMFEATS)
+    # Cache the feature id vector between parses.
+    featids = Array(Uint, NUMFEATS)
     total = 0
     correct = 0
     for goldsent in goldsents
-        predsent = parse(goldsent, model, fstructs)
+        predsent = parse(goldsent, model, featids)
         for (goldtok, predtok) in zip(goldsent, predsent)
             total += 1
             if predtok.head == goldtok.head
@@ -110,7 +113,7 @@ function evaluate(model, goldsents)
     end
 end
 
-function testeval(model, trans, conf, fstructs)
+function testeval(model, trans, conf, featids)
     # Short-hands.
     weights = model.percepbytrans[trans].weights
     bias = model.percepbytrans[trans].bias
@@ -119,11 +122,10 @@ function testeval(model, trans, conf, fstructs)
     # Apply the transition.
     undo = apply!(conf, trans)
     # Featurise the resulting configuration.
-    fstructs = featurise!(fstructs, conf)
+    featids = featurise!(featids, fidbyfstruct, conf)
 
     score = bias
-    for featstruct in fstructs
-        featid = get(fidbyfstruct, featstruct, 0)
+    for featid in featids
         # Only consider previously observed features.
         if featid > 0
             score += weights[featid]
@@ -140,17 +142,12 @@ function traineval(cache, model, trans, conf)
     # Short-hands.
     percep = model.percepbytrans[trans]
     fidbyfstruct = model.fidbyfstruct
-    fstructs = cache.fstructsbytrans[trans]
     featids = cache.fidsbytrans[trans]
 
     # Apply the transition.
     undo = apply!(conf, trans)
     # Featurise the resulting configuration.
-    featurise!(fstructs, conf)
-    for (featidx, featstruct) in enumerate(fstructs)
-        featid = get!(fidbyfstruct, featstruct, length(fidbyfstruct) + 1)
-        featids[featidx] = featid
-    end
+    featurise!(featids, fidbyfstruct, conf)
 
     # Revert to the original configuration.
     undo!(conf, undo)
@@ -201,7 +198,7 @@ type TrainModel
     #   type(Symbol, Label)?
     transs
     percepbytrans::Dict{Any,AvgPerceptron}
-    fidbyfstruct::Dict{FeatStruct, Uint}
+    fidbyfstruct::Identifier{FeatStruct,Uint}
     coder::Coder
 end
 
@@ -211,7 +208,7 @@ function TrainModel()
     for trans in transs
         dic[trans] = AvgPerceptron()
     end
-    TrainModel(transs, dic, Dict{FeatStruct, Uint}(), Coder())
+    TrainModel(transs, dic, Identifier(FeatStruct, Uint), Coder())
 end
 
 function grow!(model::TrainModel, size)
@@ -229,7 +226,7 @@ end
 type Model
     transs
     percepbytrans::Dict{Any,Perceptron}
-    fidbyfstruct::Dict{FeatStruct, Uint}
+    fidbyfstruct::Identities{FeatStruct,Uint}
     coder::Coder
 end
 
@@ -239,25 +236,23 @@ function Model(m)
     for (trans, p) in m.percepbytrans
         dic[trans] = Perceptron(p)
     end
-    # TODO: Should be a deep copy of transs, coder and fidbyfstruct?
-    Model(m.transs, dic, m.fidbyfstruct, m.coder)
+    # TODO: Should be a deep copy of transs, fidbyfstruct and coder?
+    #   This slows down the training though...
+    Model(m.transs, dic, Identities(m.fidbyfstruct), m.coder)
 end
 
 type Cache
-    fstructsbytrans::Dict{Any,Vector{FeatStruct}}
     fidsbytrans::Dict{Any,Vector{Uint}}
 end
 
 function cache(model)
     # Pre-allocate for each transition.
-    fstructsbytrans = Dict{Any,Vector{FeatStruct}}()
     fidsbytrans = Dict{Any,Vector{Uint}}()
     for trans in model.transs
-        fstructsbytrans[trans] = Array(FeatStruct, NUMFEATS)
         fidsbytrans[trans] = Array(Uint, NUMFEATS)
     end
 
-    return Cache(fstructsbytrans, fidsbytrans)
+    return Cache(fidsbytrans)
 end
 
 type Train
