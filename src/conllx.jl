@@ -13,8 +13,6 @@ module CoNLLX
 
 export NOHEAD, NOVAL, Sentence, Sentences, Token, conllxparse
 
-import Base: done, next, show, start
-
 type Token
     # [2,|Sentence|+1] sentence-internal unique token identifier.
     id::Uint
@@ -27,7 +25,7 @@ type Token
     # Fine-grained part-of-speech.
     postag::String
     # Set of syntactic and/or morphological features.
-    feats::String # TODO: Should be an ordered set, is there one in Julia?
+    feats::String # TODO: Should be an ordered set, from DataStructures.jl?
     # [1,|Sentence|+1] id of the head of the token, 0 for no head.
     head::Uint
     # Dependency relation to the head.
@@ -41,6 +39,7 @@ end
 const NOHEAD = 0
 const NOVAL = "_"
 
+import Base: show
 function show(io::IO, t::Token)
     head, phead = map(i -> i == NOHEAD ? NOVAL : string(i - 1),
         (t.head, t.phead))
@@ -62,12 +61,14 @@ end
 
 typealias Sentence Vector{Token}
 
+import Base: show
 function show(io::IO, s::Sentence)
     print(io, join([string(t) for t in s], '\n'))
 end
 
 typealias Sentences Vector{Sentence}
 
+import Base: show
 function show(io::IO, ss::Sentences)
     print(io, join([string(s) for s in ss], "\n\n"))
     print(io, '\n')
@@ -89,8 +90,10 @@ function conllxparse(stream::IO; blind=false, useproj=false)
     return CoNLLXParse(stream, useproj, blind, 0)
 end
 
+import Base: start
 start(::CoNLLXParse) = nothing
 
+import Base: next
 function next(itr::CoNLLXParse, nada)
     sent = Token[]
 
@@ -155,6 +158,7 @@ function next(itr::CoNLLXParse, nada)
     return (sent, nothing)
 end
 
+import Base: done
 done(itr::CoNLLXParse, nada) = eof(itr.stream)
 
 end
