@@ -9,7 +9,7 @@ module Structs
 
 export Identifier, Identities, id
 
-type Identifier{T,U<:Integer}
+immutable Identifier{T,U<:Integer}
     d::Dict{T,U}
 end
 
@@ -20,7 +20,7 @@ length(c::Identifier) = length(c.d)
 
 id(c::Identifier, o) = get!(c.d, o, length(c) + 1)
 
-type Identities{T,U<:Integer}
+immutable Identities{T,U<:Integer}
     d::Dict{T,U}
     default::U
 end
