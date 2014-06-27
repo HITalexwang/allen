@@ -212,7 +212,7 @@ function randoracle(c::Config)
     return legal[rand(1:end)]
 end
 
-type FeatStruct
+immutable FeatStruct
     id::Uint
     arg1::Uint
     arg2::Uint
