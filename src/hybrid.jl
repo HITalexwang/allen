@@ -23,7 +23,7 @@ using Structs
 using CoNLLX
 using DepGraph
 
-type Config
+immutable Config
     stack::Vector{Vertex}
     buff::Vector{Vertex}
     graph::Graph
@@ -51,7 +51,7 @@ end
 
 isterminal(c::Config) = isempty(c.buff) && length(c.stack) == 1
 
-type Shift
+immutable Shift
     # Intentionally left blank.
 end
 
@@ -68,7 +68,7 @@ isequal(::Shift, ::Shift) = true
 import Base: hash
 hash(::Shift) = 0x4711
 
-type LeftArc
+immutable LeftArc
     deprel::String
 end
 
@@ -98,7 +98,7 @@ isequal(a::LeftArc, b::LeftArc) = a.deprel == b.deprel
 import Base: hash
 hash(a::LeftArc) = hash(a.deprel)
 
-type RightArc
+immutable RightArc
     deprel::String
 end
 
@@ -126,20 +126,20 @@ isequal(a::RightArc, b::RightArc) = a.deprel == b.deprel
 import Base: hash
 hash(a::RightArc) = hash(a.deprel)
 
-type ShiftUndo
+immutable ShiftUndo
     # Intentionally left blank.
 end
 
 const shiftundo = ShiftUndo()
 
-type LeftArcUndo
+immutable LeftArcUndo
     dependent::Vertex
     deprel::String
     oldhead::Uint
     olddeprel::String
 end
 
-type RightArcUndo
+immutable RightArcUndo
     dependent::Vertex
     deprel::String
     oldhead::Uint
