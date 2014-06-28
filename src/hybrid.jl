@@ -233,12 +233,6 @@ function hash(a::FeatStruct)
     hash(a.id) $ hash(a.arg1) $ hash(a.arg2) $ hash(a.arg3) $ hash(a.arg4)
 end
 
-import Base: isequal
-function isequal(a::FeatStruct, b::FeatStruct)
-    (a.id == b.id && a.arg1 == b.arg1 && a.arg2 == b.arg2 && a.arg3 == b.arg3
-        && a.arg4 == b.arg4)
-end
-
 import Base: show
 function show(io::IO, fs::FeatStruct)
     print(io, string("FeatStruct(id=$(fs.id), $(fs.arg1), $(fs.arg2), ",
