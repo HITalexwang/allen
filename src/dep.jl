@@ -36,15 +36,7 @@ type Vertex
     ldependents::Vector{Vertex}
     rdependents::Vector{Vertex}
     function Vertex(id, form, postag)
-        v = new()
-        v.id = id
-        v.form = form
-        v.postag = postag
-        v.head = NOHEAD
-        v.deprel = NOVAL
-        v.ldependents = Vertex[]
-        v.rdependents = Vertex[]
-        return v
+        new(id, form, postag, NOHEAD, NOVAL, Vertex[], Vertex[])
     end
 end
 
