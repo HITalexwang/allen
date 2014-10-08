@@ -21,7 +21,7 @@ const LEMON     = "lemon"
 const LBLS      = (APPLE, ORANGE, LEMON)
 
 # As per fruit_types.txt
-const LBLBYID = [
+const LBLBYID = Dict(
     1   => APPLE,
     2   => ORANGE,
     3   => APPLE,
@@ -32,7 +32,7 @@ const LBLBYID = [
     8   => ORANGE,
     9   => LEMON,
     10  => LEMON,
-]
+)
 
 const NUMFEATS = 3
 
