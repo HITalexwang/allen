@@ -1,6 +1,6 @@
 # vim:set ft=yaml ts=4 sw=4 sts=4 autoindent:
 
-# Configuration file for Travis CI continuous integration.
+# Configuration file for Travis Continuous Integration (CI).
 #
 # Author:   Pontus Stenetorp    <pontus stenetorp se>
 # Version:  2014-05-27
