@@ -13,9 +13,13 @@ compiler:
 notifications:
     email: false
 
-env:
-    - JLVERSION="juliareleases"
-    - JLVERSION="julianightlies"
+matrix:
+    env:
+        - JLVERSION="juliareleases"
+        - JLVERSION="julianightlies"
+    allow_failures:
+        - env: JLVERSION="julianightlies"
+    fast_finish: true
 
 before_install:
     - sudo add-apt-repository ppa:staticfloat/julia-deps -y
