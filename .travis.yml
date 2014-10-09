@@ -14,17 +14,24 @@ notifications:
     email: false
 
 env:
-    matrix:
-        - JULIAVERSION="juliareleases"
-        - JULIAVERSION="julianightlies"
+    - JLVERSION="juliareleases"
+    - JLVERSION="julianightlies"
 
 before_install:
     - sudo add-apt-repository ppa:staticfloat/julia-deps -y
-    - sudo add-apt-repository ppa:staticfloat/${JULIAVERSION} -y
+    - sudo add-apt-repository "ppa:staticfloat/${JLVERSION}" -y
     - sudo apt-get update -q -q -y
     - sudo apt-get install libpcre3-dev julia -y
-script:
-    - make coverage
-after_success:
-    - julia -e 'Pkg.add("Coverage")'
-    - julia -e 'using Coverage; Coveralls.submit(Coveralls.process_folder())'
+script: |
+    if [ ${JLVERSION} = "julianightlies" ]
+    then
+        make coverage
+    else
+        make sanity
+    fi
+after_success: |
+    if [ ${JLVERSION} = "julianightlies" ]
+    then
+        julia -e 'Pkg.add("Coverage")'
+        julia -e 'using Coverage; Coveralls.submit(Coveralls.process_folder())'
+    fi
