@@ -28,14 +28,14 @@ before_install:
     - sudo apt-get update -q -q -y
     - sudo apt-get install libpcre3-dev julia -y
 script: |
-    if [ "${JLVERSION}" = "julianightlies" ]
+    if [ "${JLVERSION}" = "juliareleases" ]
     then
         make coverage
     else
         make sanity
     fi
 after_success: |
-    if [ "${JLVERSION}" = "julianightlies" ]
+    if [ "${JLVERSION}" = "juliareleases" ]
     then
         julia -e 'Pkg.add("Coverage")'
         julia -e 'using Coverage; Coveralls.submit(Coveralls.process_folder())'
